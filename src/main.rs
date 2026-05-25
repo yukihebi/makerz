@@ -1,9 +1,12 @@
 use std::env;
 use std::process::ExitCode;
 
-use makerz::cli::{self, Parsed};
-use makerz::error::Error;
-use makerz::makers;
+mod cli;
+mod error;
+mod makers;
+
+use cli::Parsed;
+use error::Error;
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
