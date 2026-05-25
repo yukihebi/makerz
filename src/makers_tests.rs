@@ -18,20 +18,27 @@ fn spawn_missing_binary_returns_makers_not_found() {
 
 #[test]
 fn spawn_zero_exit_is_ok() {
-    spawn("true", &[]).expect("/usr/bin/true should exit 0");
+    run_with_exit_code(0).expect("shell exit 0 should succeed");
 }
 
 #[test]
-fn spawn_nonzero_exit_returns_makers_exited() {
-    let err = spawn("false", &[]).unwrap_err();
-    match err {
-        Error::MakersExited(c) => assert_ne!(c, 0),
-        other => panic!("expected MakersExited, got {other:?}"),
-    }
-}
-
-#[test]
-fn spawn_forwards_arbitrary_exit_code() {
-    let err = spawn("sh", &["-c".into(), "exit 42".into()]).unwrap_err();
+fn spawn_forwards_exit_code() {
+    let err = run_with_exit_code(42).unwrap_err();
     assert!(matches!(err, Error::MakersExited(42)), "got {err:?}");
+}
+
+/// Spawn the platform's default shell with a command that exits with `code`.
+fn run_with_exit_code(code: i32) -> Result<(), Error> {
+    let (binary, args) = shell_exit_command(code);
+    spawn(binary, &args)
+}
+
+#[cfg(unix)]
+fn shell_exit_command(code: i32) -> (&'static str, Vec<String>) {
+    ("sh", vec!["-c".into(), format!("exit {code}")])
+}
+
+#[cfg(windows)]
+fn shell_exit_command(code: i32) -> (&'static str, Vec<String>) {
+    ("cmd", vec!["/C".into(), format!("exit {code}")])
 }
