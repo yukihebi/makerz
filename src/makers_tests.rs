@@ -22,19 +22,16 @@ fn spawn_zero_exit_is_ok() {
 }
 
 #[test]
-fn spawn_nonzero_exit_returns_makers_failed() {
+fn spawn_nonzero_exit_returns_makers_exited() {
     let err = spawn("false", &[]).unwrap_err();
     match err {
-        Error::MakersFailed { code: Some(c) } => assert_ne!(c, 0),
-        other => panic!("expected MakersFailed, got {other:?}"),
+        Error::MakersExited(c) => assert_ne!(c, 0),
+        other => panic!("expected MakersExited, got {other:?}"),
     }
 }
 
 #[test]
 fn spawn_forwards_arbitrary_exit_code() {
     let err = spawn("sh", &["-c".into(), "exit 42".into()]).unwrap_err();
-    assert!(
-        matches!(err, Error::MakersFailed { code: Some(42) }),
-        "got {err:?}"
-    );
+    assert!(matches!(err, Error::MakersExited(42)), "got {err:?}");
 }

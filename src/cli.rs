@@ -1,5 +1,6 @@
-use std::fmt;
 use std::vec::IntoIter;
+
+use thiserror::Error;
 
 /// Result of parsing makerz's own CLI flags.
 ///
@@ -21,40 +22,24 @@ pub enum Parsed {
 ///
 /// Wrapped by [`crate::error::Error::ArgParse`]; surfaced directly to unit tests
 /// so assertions can match on the variant instead of the rendered message.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Error)]
 pub enum ParseError {
     /// `--extend` was the last token; no value followed.
+    #[error("--extend requires a path argument")]
     ExtendMissingValue,
     /// `--extend=` or `--extend ""` produced an empty path.
+    #[error("--extend requires a non-empty path argument")]
     ExtendEmptyValue,
     /// `--extend` was specified without `--init`.
+    #[error("--extend requires --init (multi-parent or standalone extend is not supported)")]
     ExtendWithoutInit,
     /// `--extend` was specified more than once.
+    #[error("--extend may be specified at most once")]
     ExtendDuplicated,
     /// `--init` was combined with positional or unknown tokens.
+    #[error("--init does not accept other arguments (got: {})", .0.join(" "))]
     InitWithExtraArgs(Vec<String>),
 }
-
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::ExtendMissingValue => write!(f, "--extend requires a path argument"),
-            Self::ExtendEmptyValue => write!(f, "--extend requires a non-empty path argument"),
-            Self::ExtendWithoutInit => write!(
-                f,
-                "--extend requires --init (multi-parent or standalone extend is not supported)"
-            ),
-            Self::ExtendDuplicated => write!(f, "--extend may be specified at most once"),
-            Self::InitWithExtraArgs(args) => write!(
-                f,
-                "--init does not accept other arguments (got: {})",
-                args.join(" ")
-            ),
-        }
-    }
-}
-
-impl std::error::Error for ParseError {}
 
 /// Parse makerz's argv tail (program name already stripped).
 pub fn parse(args: Vec<String>) -> Result<Parsed, ParseError> {

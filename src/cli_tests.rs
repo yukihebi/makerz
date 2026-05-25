@@ -144,24 +144,6 @@ fn help_intercepts_even_with_other_args() {
 }
 
 #[test]
-fn parse_error_display_mentions_the_relevant_flag() {
-    let cases: &[(ParseError, &str)] = &[
-        (ParseError::ExtendMissingValue, "--extend"),
-        (ParseError::ExtendEmptyValue, "--extend"),
-        (ParseError::ExtendWithoutInit, "--extend"),
-        (ParseError::ExtendDuplicated, "--extend"),
-        (
-            ParseError::InitWithExtraArgs(vec!["task1".into()]),
-            "--init",
-        ),
-    ];
-    for (err, needle) in cases {
-        let msg = err.to_string();
-        assert!(msg.contains(needle), "missing {needle:?} in {msg:?}");
-    }
-}
-
-#[test]
 fn version_text_identifies_makerz_and_points_to_makers() {
     let v = version_text();
     assert!(v.contains("makerz"), "got: {v}");

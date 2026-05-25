@@ -27,8 +27,9 @@ pub fn spawn(binary: &str, args: &[String]) -> Result<(), Error> {
     if status.success() {
         Ok(())
     } else {
-        Err(Error::MakersFailed {
-            code: status.code(),
+        Err(match status.code() {
+            Some(code) => Error::MakersExited(code),
+            None => Error::MakersTerminatedBySignal,
         })
     }
 }
