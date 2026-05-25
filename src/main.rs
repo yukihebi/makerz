@@ -22,11 +22,11 @@ fn main() -> ExitCode {
 fn run(args: Vec<String>) -> Result<(), Error> {
     match cli::parse(args)? {
         Parsed::Version => {
-            println!("{}", cli::version_text());
+            println!("{}", cli::VERSION_TEXT);
             Ok(())
         }
         Parsed::Help => {
-            print!("{}", cli::help_text());
+            print!("{}", cli::HELP_TEXT);
             Ok(())
         }
         Parsed::Init { extend: _ } => {

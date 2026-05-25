@@ -145,16 +145,14 @@ fn help_intercepts_even_with_other_args() {
 
 #[test]
 fn version_text_identifies_makerz_and_points_to_makers() {
-    let v = version_text();
-    assert!(v.contains("makerz"), "got: {v}");
-    assert!(v.contains(env!("CARGO_PKG_VERSION")), "got: {v}");
-    assert!(v.contains("makers --version"), "got: {v}");
+    assert!(VERSION_TEXT.contains("makerz"));
+    assert!(VERSION_TEXT.contains(env!("CARGO_PKG_VERSION")));
+    assert!(VERSION_TEXT.contains("makers --version"));
 }
 
 #[test]
 fn help_text_lists_all_makerz_flags_and_points_to_makers() {
-    let h = help_text();
     for needle in ["--init", "--extend", "--version", "--help", "makers --help"] {
-        assert!(h.contains(needle), "help missing {needle:?}: {h}");
+        assert!(HELP_TEXT.contains(needle), "help missing {needle:?}");
     }
 }

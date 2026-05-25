@@ -147,16 +147,14 @@ impl Scan {
 }
 
 /// Text printed for `makerz --version`.
-pub fn version_text() -> String {
-    format!(
-        "makerz {}\n(for cargo-make's version, run `makers --version`)",
-        env!("CARGO_PKG_VERSION"),
-    )
-}
+pub const VERSION_TEXT: &str = concat!(
+    "makerz ",
+    env!("CARGO_PKG_VERSION"),
+    "\n(for cargo-make's version, run `makers --version`)",
+);
 
 /// Text printed for `makerz --help`.
-pub fn help_text() -> &'static str {
-    "\
+pub const HELP_TEXT: &str = "\
 makerz - a thin wrapper around cargo-make (`makers`)
 
 USAGE:
@@ -167,8 +165,7 @@ USAGE:
     makerz --help                      Print this help
 
 For cargo-make's own usage, run `makers --help`.
-"
-}
+";
 
 #[cfg(test)]
 #[path = "cli_tests.rs"]
