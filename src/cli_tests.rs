@@ -1,7 +1,6 @@
 use super::*;
-use crate::error::Error;
 
-fn parse_strs(args: &[&str]) -> Result<Parsed, Error> {
+fn parse_strs(args: &[&str]) -> Result<Parsed, ParseError> {
     parse(args.iter().map(|s| (*s).to_string()).collect())
 }
 
@@ -69,36 +68,50 @@ fn extend_order_does_not_matter() {
 
 #[test]
 fn extend_without_init_is_error() {
-    let err = parse_strs(&["--extend", "foo"]).unwrap_err();
-    let msg = err.to_string();
-    assert!(
-        msg.contains("--extend") && msg.contains("--init"),
-        "msg: {msg}"
+    assert_eq!(
+        parse_strs(&["--extend", "foo"]).unwrap_err(),
+        ParseError::ExtendWithoutInit
     );
 }
 
 #[test]
-fn extend_missing_value_spaced_is_error() {
-    let err = parse_strs(&["--init", "--extend"]).unwrap_err();
-    assert!(err.to_string().contains("--extend"));
+fn extend_missing_value_is_error() {
+    assert_eq!(
+        parse_strs(&["--init", "--extend"]).unwrap_err(),
+        ParseError::ExtendMissingValue
+    );
 }
 
 #[test]
-fn extend_missing_value_equals_is_error() {
-    let err = parse_strs(&["--init", "--extend="]).unwrap_err();
-    assert!(err.to_string().contains("--extend"));
+fn extend_empty_value_via_equals_is_error() {
+    assert_eq!(
+        parse_strs(&["--init", "--extend="]).unwrap_err(),
+        ParseError::ExtendEmptyValue
+    );
+}
+
+#[test]
+fn extend_empty_value_via_spaced_is_error() {
+    assert_eq!(
+        parse_strs(&["--init", "--extend", ""]).unwrap_err(),
+        ParseError::ExtendEmptyValue
+    );
 }
 
 #[test]
 fn extend_more_than_once_is_error() {
-    let err = parse_strs(&["--init", "--extend", "a", "--extend", "b"]).unwrap_err();
-    assert!(err.to_string().contains("--extend"));
+    assert_eq!(
+        parse_strs(&["--init", "--extend", "a", "--extend", "b"]).unwrap_err(),
+        ParseError::ExtendDuplicated
+    );
 }
 
 #[test]
 fn init_with_passthrough_args_is_error() {
-    let err = parse_strs(&["--init", "task1"]).unwrap_err();
-    assert!(err.to_string().contains("--init"));
+    assert_eq!(
+        parse_strs(&["--init", "task1", "task2"]).unwrap_err(),
+        ParseError::InitWithExtraArgs(vec!["task1".into(), "task2".into()])
+    );
 }
 
 #[test]
@@ -128,6 +141,24 @@ fn duplicate_init_is_allowed() {
 fn help_intercepts_even_with_other_args() {
     assert_eq!(parse_strs(&["task", "--help"]).unwrap(), Parsed::Help);
     assert_eq!(parse_strs(&["--init", "--help"]).unwrap(), Parsed::Help);
+}
+
+#[test]
+fn parse_error_display_mentions_the_relevant_flag() {
+    let cases: &[(ParseError, &str)] = &[
+        (ParseError::ExtendMissingValue, "--extend"),
+        (ParseError::ExtendEmptyValue, "--extend"),
+        (ParseError::ExtendWithoutInit, "--extend"),
+        (ParseError::ExtendDuplicated, "--extend"),
+        (
+            ParseError::InitWithExtraArgs(vec!["task1".into()]),
+            "--init",
+        ),
+    ];
+    for (err, needle) in cases {
+        let msg = err.to_string();
+        assert!(msg.contains(needle), "missing {needle:?} in {msg:?}");
+    }
 }
 
 #[test]

@@ -1,4 +1,5 @@
-use crate::error::Error;
+use std::fmt;
+use std::vec::IntoIter;
 
 /// Result of parsing makerz's own CLI flags.
 ///
@@ -16,14 +17,53 @@ pub enum Parsed {
     Passthrough { args: Vec<String> },
 }
 
-/// Parse makerz's argv tail (program name already stripped).
-pub fn parse(args: Vec<String>) -> Result<Parsed, Error> {
-    Scan::collect(args)?.classify()
+/// Distinct reasons a makerz CLI parse can fail.
+///
+/// Wrapped by [`crate::error::Error::ArgParse`]; surfaced directly to unit tests
+/// so assertions can match on the variant instead of the rendered message.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ParseError {
+    /// `--extend` was the last token; no value followed.
+    ExtendMissingValue,
+    /// `--extend=` or `--extend ""` produced an empty path.
+    ExtendEmptyValue,
+    /// `--extend` was specified without `--init`.
+    ExtendWithoutInit,
+    /// `--extend` was specified more than once.
+    ExtendDuplicated,
+    /// `--init` was combined with positional or unknown tokens.
+    InitWithExtraArgs(Vec<String>),
 }
 
-/// Per-token accumulator. Filled by `collect`, consumed by `classify`.
-#[derive(Default)]
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ExtendMissingValue => write!(f, "--extend requires a path argument"),
+            Self::ExtendEmptyValue => write!(f, "--extend requires a non-empty path argument"),
+            Self::ExtendWithoutInit => write!(
+                f,
+                "--extend requires --init (multi-parent or standalone extend is not supported)"
+            ),
+            Self::ExtendDuplicated => write!(f, "--extend may be specified at most once"),
+            Self::InitWithExtraArgs(args) => write!(
+                f,
+                "--init does not accept other arguments (got: {})",
+                args.join(" ")
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ParseError {}
+
+/// Parse makerz's argv tail (program name already stripped).
+pub fn parse(args: Vec<String>) -> Result<Parsed, ParseError> {
+    Scan::run(args)?.classify()
+}
+
+/// Per-token accumulator. Owns the input iterator so per-token logic stays self-contained.
 struct Scan {
+    iter: IntoIter<String>,
     help: bool,
     version: bool,
     init: bool,
@@ -33,41 +73,58 @@ struct Scan {
 }
 
 impl Scan {
-    fn collect(args: Vec<String>) -> Result<Self, Error> {
-        let mut scan = Scan::default();
-        let mut iter = args.into_iter();
-        while let Some(arg) = iter.next() {
-            scan.consume(arg, &mut iter)?;
+    fn new(args: Vec<String>) -> Self {
+        Self {
+            iter: args.into_iter(),
+            help: false,
+            version: false,
+            init: false,
+            extend: None,
+            extend_count: 0,
+            passthrough: Vec::new(),
+        }
+    }
+
+    fn run(args: Vec<String>) -> Result<Self, ParseError> {
+        let mut scan = Self::new(args);
+        while let Some(arg) = scan.iter.next() {
+            scan.consume(arg)?;
         }
         Ok(scan)
     }
 
-    fn consume(&mut self, arg: String, rest: &mut std::vec::IntoIter<String>) -> Result<(), Error> {
+    fn consume(&mut self, arg: String) -> Result<(), ParseError> {
         match arg.as_str() {
             "--help" => self.help = true,
             "--version" => self.version = true,
             "--init" => self.init = true,
-            "--extend" => self.set_extend(extend_value_from_next(rest)?)?,
+            "--extend" => {
+                let value = self.next_extend_value()?;
+                self.set_extend(value)?;
+            }
             s if s.starts_with("--extend=") => {
-                self.set_extend(s["--extend=".len()..].to_string())?
+                let value = s["--extend=".len()..].to_string();
+                self.set_extend(value)?;
             }
             _ => self.passthrough.push(arg),
         }
         Ok(())
     }
 
-    fn set_extend(&mut self, value: String) -> Result<(), Error> {
+    fn next_extend_value(&mut self) -> Result<String, ParseError> {
+        self.iter.next().ok_or(ParseError::ExtendMissingValue)
+    }
+
+    fn set_extend(&mut self, value: String) -> Result<(), ParseError> {
         if value.is_empty() {
-            return Err(Error::ArgParse(
-                "--extend requires a non-empty path argument".into(),
-            ));
+            return Err(ParseError::ExtendEmptyValue);
         }
         self.extend_count += 1;
         self.extend = Some(value);
         Ok(())
     }
 
-    fn classify(self) -> Result<Parsed, Error> {
+    fn classify(self) -> Result<Parsed, ParseError> {
         if self.help {
             return Ok(Parsed::Help);
         }
@@ -75,46 +132,33 @@ impl Scan {
             return Ok(Parsed::Version);
         }
         self.validate_extend()?;
-        if self.init {
-            ensure_no_passthrough(&self.passthrough)?;
-            return Ok(Parsed::Init {
-                extend: self.extend,
-            });
-        }
-        Ok(Parsed::Passthrough {
-            args: self.passthrough,
-        })
+        self.into_init_or_passthrough()
     }
 
-    fn validate_extend(&self) -> Result<(), Error> {
+    fn validate_extend(&self) -> Result<(), ParseError> {
         if self.extend_count > 1 {
-            return Err(Error::ArgParse(
-                "--extend may be specified at most once".into(),
-            ));
+            return Err(ParseError::ExtendDuplicated);
         }
         if self.extend.is_some() && !self.init {
-            return Err(Error::ArgParse(
-                "--extend requires --init (multi-parent or standalone extend is not supported)"
-                    .into(),
-            ));
+            return Err(ParseError::ExtendWithoutInit);
         }
         Ok(())
     }
-}
 
-fn extend_value_from_next(rest: &mut std::vec::IntoIter<String>) -> Result<String, Error> {
-    rest.next()
-        .ok_or_else(|| Error::ArgParse("--extend requires a path argument".into()))
-}
-
-fn ensure_no_passthrough(passthrough: &[String]) -> Result<(), Error> {
-    if !passthrough.is_empty() {
-        return Err(Error::ArgParse(format!(
-            "--init does not accept other arguments (got: {})",
-            passthrough.join(" ")
-        )));
+    fn into_init_or_passthrough(self) -> Result<Parsed, ParseError> {
+        if self.init {
+            if !self.passthrough.is_empty() {
+                return Err(ParseError::InitWithExtraArgs(self.passthrough));
+            }
+            Ok(Parsed::Init {
+                extend: self.extend,
+            })
+        } else {
+            Ok(Parsed::Passthrough {
+                args: self.passthrough,
+            })
+        }
     }
-    Ok(())
 }
 
 /// Text printed for `makerz --version`.

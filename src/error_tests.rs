@@ -1,13 +1,21 @@
 use super::*;
+use crate::cli::ParseError;
 use std::io;
 
 #[test]
-fn arg_parse_display_includes_message() {
-    let err = Error::ArgParse("missing value for --extend".into());
-    assert_eq!(
-        err.to_string(),
-        "argument error: missing value for --extend"
-    );
+fn arg_parse_wraps_parse_error_message() {
+    let inner = ParseError::ExtendWithoutInit;
+    let inner_msg = inner.to_string();
+    let err = Error::ArgParse(inner);
+    let msg = err.to_string();
+    assert!(msg.starts_with("argument error: "), "got: {msg}");
+    assert!(msg.ends_with(&inner_msg), "got: {msg}");
+}
+
+#[test]
+fn arg_parse_from_conversion() {
+    let err: Error = ParseError::ExtendDuplicated.into();
+    assert!(matches!(err, Error::ArgParse(ParseError::ExtendDuplicated)));
 }
 
 #[test]
@@ -39,7 +47,10 @@ fn makers_failed_signal_display() {
 
 #[test]
 fn exit_code_arg_parse_is_2() {
-    assert_eq!(Error::ArgParse("x".into()).exit_code(), 2);
+    assert_eq!(
+        Error::ArgParse(ParseError::ExtendMissingValue).exit_code(),
+        2
+    );
 }
 
 #[test]
