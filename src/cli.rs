@@ -18,74 +18,103 @@ pub enum Parsed {
 
 /// Parse makerz's argv tail (program name already stripped).
 pub fn parse(args: Vec<String>) -> Result<Parsed, Error> {
-    let mut help = false;
-    let mut version = false;
-    let mut init = false;
-    let mut extend: Option<String> = None;
-    let mut extend_count: u32 = 0;
-    let mut passthrough: Vec<String> = Vec::new();
+    Scan::collect(args)?.classify()
+}
 
-    let mut iter = args.into_iter();
-    while let Some(arg) = iter.next() {
+/// Per-token accumulator. Filled by `collect`, consumed by `classify`.
+#[derive(Default)]
+struct Scan {
+    help: bool,
+    version: bool,
+    init: bool,
+    extend: Option<String>,
+    extend_count: u32,
+    passthrough: Vec<String>,
+}
+
+impl Scan {
+    fn collect(args: Vec<String>) -> Result<Self, Error> {
+        let mut scan = Scan::default();
+        let mut iter = args.into_iter();
+        while let Some(arg) = iter.next() {
+            scan.consume(arg, &mut iter)?;
+        }
+        Ok(scan)
+    }
+
+    fn consume(&mut self, arg: String, rest: &mut std::vec::IntoIter<String>) -> Result<(), Error> {
         match arg.as_str() {
-            "--help" => help = true,
-            "--version" => version = true,
-            "--init" => init = true,
-            "--extend" => {
-                extend_count += 1;
-                let value = iter
-                    .next()
-                    .ok_or_else(|| Error::ArgParse("--extend requires a path argument".into()))?;
-                if value.is_empty() {
-                    return Err(Error::ArgParse(
-                        "--extend requires a non-empty path argument".into(),
-                    ));
-                }
-                extend = Some(value);
-            }
+            "--help" => self.help = true,
+            "--version" => self.version = true,
+            "--init" => self.init = true,
+            "--extend" => self.set_extend(extend_value_from_next(rest)?)?,
             s if s.starts_with("--extend=") => {
-                extend_count += 1;
-                let value = &s["--extend=".len()..];
-                if value.is_empty() {
-                    return Err(Error::ArgParse(
-                        "--extend requires a non-empty path argument".into(),
-                    ));
-                }
-                extend = Some(value.to_string());
+                self.set_extend(s["--extend=".len()..].to_string())?
             }
-            _ => passthrough.push(arg),
+            _ => self.passthrough.push(arg),
         }
+        Ok(())
     }
 
-    if help {
-        return Ok(Parsed::Help);
-    }
-    if version {
-        return Ok(Parsed::Version);
-    }
-
-    if extend_count > 1 {
-        return Err(Error::ArgParse(
-            "--extend may be specified at most once".into(),
-        ));
-    }
-    if extend.is_some() && !init {
-        return Err(Error::ArgParse(
-            "--extend requires --init (multi-parent or standalone extend is not supported)".into(),
-        ));
-    }
-
-    if init {
-        if !passthrough.is_empty() {
-            return Err(Error::ArgParse(format!(
-                "--init does not accept other arguments (got: {})",
-                passthrough.join(" ")
-            )));
+    fn set_extend(&mut self, value: String) -> Result<(), Error> {
+        if value.is_empty() {
+            return Err(Error::ArgParse(
+                "--extend requires a non-empty path argument".into(),
+            ));
         }
-        return Ok(Parsed::Init { extend });
+        self.extend_count += 1;
+        self.extend = Some(value);
+        Ok(())
     }
 
-    Ok(Parsed::Passthrough { args: passthrough })
+    fn classify(self) -> Result<Parsed, Error> {
+        if self.help {
+            return Ok(Parsed::Help);
+        }
+        if self.version {
+            return Ok(Parsed::Version);
+        }
+        self.validate_extend()?;
+        if self.init {
+            ensure_no_passthrough(&self.passthrough)?;
+            return Ok(Parsed::Init {
+                extend: self.extend,
+            });
+        }
+        Ok(Parsed::Passthrough {
+            args: self.passthrough,
+        })
+    }
+
+    fn validate_extend(&self) -> Result<(), Error> {
+        if self.extend_count > 1 {
+            return Err(Error::ArgParse(
+                "--extend may be specified at most once".into(),
+            ));
+        }
+        if self.extend.is_some() && !self.init {
+            return Err(Error::ArgParse(
+                "--extend requires --init (multi-parent or standalone extend is not supported)"
+                    .into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+fn extend_value_from_next(rest: &mut std::vec::IntoIter<String>) -> Result<String, Error> {
+    rest.next()
+        .ok_or_else(|| Error::ArgParse("--extend requires a path argument".into()))
+}
+
+fn ensure_no_passthrough(passthrough: &[String]) -> Result<(), Error> {
+    if !passthrough.is_empty() {
+        return Err(Error::ArgParse(format!(
+            "--init does not accept other arguments (got: {})",
+            passthrough.join(" ")
+        )));
+    }
+    Ok(())
 }
 
 /// Text printed for `makerz --version`.
