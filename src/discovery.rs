@@ -15,9 +15,9 @@ pub enum DiscoveryError {
 
 /// Directory + canonical filename of a `Makefile.toml`.
 ///
-/// Constructed by [`find_makefile`] or directly via [`MakefileLocation::new`]
-/// (the latter is used by extend-chain walking, which builds locations from
-/// parent paths rather than from upward search).
+/// Constructed by [`find_makefile`] or directly via [`MakefileLocation::new`].
+/// The latter lets callers construct a location from a known directory — for
+/// example when walking an extend chain to resolve parent Makefiles.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct MakefileLocation {
     dir: PathBuf,
@@ -32,7 +32,6 @@ impl MakefileLocation {
         &self.dir
     }
 
-    #[allow(dead_code)]
     pub fn file(&self) -> PathBuf {
         self.dir.join("Makefile.toml")
     }

@@ -1,10 +1,9 @@
-// Removed in Task 7 (main.rs wiring) once `parse` is called from the binary.
-#![allow(dead_code)]
-
 //! Parse a single `Makefile.toml` into structured directive info.
 //!
-//! Wired into the binary in this PR only to surface errors early; the parsed
-//! data is consumed by later PRs (caller-injection, env-resolution).
+//! The binary parses the discovered Makefile on every run so directive errors
+//! surface before `makers` is launched. The parsed data is otherwise discarded
+//! at the wrapper level today; future caller-env injection and extend-chain
+//! resolution consume the structured output.
 
 use std::fs;
 use std::path::PathBuf;
@@ -67,6 +66,7 @@ pub struct ParsedMakefile {
     extend: Option<String>,
 }
 
+#[allow(dead_code)]
 impl ParsedMakefile {
     pub fn location(&self) -> &MakefileLocation {
         &self.location
@@ -87,6 +87,7 @@ pub struct ParsedEnv {
     plain_keys: Vec<String>,
 }
 
+#[allow(dead_code)]
 impl ParsedEnv {
     pub fn file(&self) -> Option<&EnvBinding> {
         self.file.as_ref()
@@ -108,6 +109,7 @@ pub struct EnvBinding {
     fallback: String,
 }
 
+#[allow(dead_code)]
 impl EnvBinding {
     pub fn name(&self) -> &str {
         &self.name

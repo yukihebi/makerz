@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use super::*;
 use crate::cli::ParseError;
+use crate::directive_parser::ParseMakefileError;
 use crate::discovery::DiscoveryError;
 
 #[test]
@@ -18,6 +19,12 @@ fn exit_code_discovery_is_1() {
     let err = Error::Discovery(DiscoveryError::NotFound {
         start: PathBuf::from("/nowhere"),
     });
+    assert_eq!(err.exit_code(), 1);
+}
+
+#[test]
+fn exit_code_parse_makefile_is_1() {
+    let err = Error::ParseMakefile(ParseMakefileError::ExtendNotString { kind: "array" });
     assert_eq!(err.exit_code(), 1);
 }
 

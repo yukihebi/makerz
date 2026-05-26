@@ -40,7 +40,8 @@ fn run(args: Vec<String>) -> Result<(), Error> {
 
 fn passthrough(args: Vec<String>) -> Result<(), Error> {
     let cwd = env::current_dir().map_err(Error::Cwd)?;
-    let discovered = discovery::find_makefile(&cwd)?;
-    let argv = makers::build_args(discovered.dir(), &args);
+    let location = discovery::find_makefile(&cwd)?;
+    let _parsed = directive_parser::parse(location.clone())?;
+    let argv = makers::build_args(location.dir(), &args);
     makers::spawn(makers::MAKERS_BINARY, &argv)
 }
