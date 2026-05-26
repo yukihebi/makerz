@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::io;
 use std::path::Path;
 use std::process::Command;
@@ -11,18 +12,20 @@ pub const MAKERS_BINARY: &str = "makers";
 ///
 /// `makefile_dir` is prepended as `--cwd <dir>` so that the discovered
 /// `Makefile.toml` is resolved consistently regardless of the shell's cwd.
+/// Returns [`OsString`]s to preserve non-UTF-8 paths losslessly on Unix.
+///
 /// Any `--cwd` on the passthrough side is intentionally not parsed here; if
 /// the user supplied one, `makers` itself decides which wins.
-pub fn build_args(makefile_dir: &Path, passthrough: &[String]) -> Vec<String> {
+pub fn build_args(makefile_dir: &Path, passthrough: &[String]) -> Vec<OsString> {
     let mut args = Vec::with_capacity(passthrough.len() + 2);
-    args.push("--cwd".to_string());
-    args.push(makefile_dir.to_string_lossy().into_owned());
-    args.extend(passthrough.iter().cloned());
+    args.push(OsString::from("--cwd"));
+    args.push(makefile_dir.as_os_str().to_os_string());
+    args.extend(passthrough.iter().map(OsString::from));
     args
 }
 
 /// Spawn `binary` with `args`, inheriting stdio, and translate the result into [`Error`].
-pub fn spawn(binary: &str, args: &[String]) -> Result<(), Error> {
+pub fn spawn(binary: &str, args: &[OsString]) -> Result<(), Error> {
     let status = match Command::new(binary).args(args).status() {
         Ok(s) => s,
         Err(err) if err.kind() == io::ErrorKind::NotFound => return Err(Error::MakersNotFound),

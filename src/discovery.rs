@@ -19,18 +19,15 @@ pub enum DiscoveryError {
 /// Stops at the filesystem root: returns [`DiscoveryError::NotFound`] when no
 /// `Makefile.toml` exists on the chain from `start` to `/`.
 pub fn find_makefile(start: &Path) -> Result<PathBuf, DiscoveryError> {
-    let mut dir = start.to_path_buf();
-    loop {
+    for dir in start.ancestors() {
         let candidate = dir.join("Makefile.toml");
         if candidate.is_file() {
             return Ok(candidate);
         }
-        if !dir.pop() {
-            return Err(DiscoveryError::NotFound {
-                start: start.to_path_buf(),
-            });
-        }
     }
+    Err(DiscoveryError::NotFound {
+        start: start.to_path_buf(),
+    })
 }
 
 #[cfg(test)]
