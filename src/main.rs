@@ -1,23 +1,40 @@
 use std::env;
-use std::process::{Command, ExitCode};
+use std::process::ExitCode;
+
+mod cli;
+mod error;
+mod makers;
+
+use cli::Parsed;
+use error::Error;
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
-    let args = run(args);
-    exec_cargo_make(&args)
+    match run(args) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            eprintln!("makerz: {err}");
+            ExitCode::from(err.exit_code())
+        }
+    }
 }
 
-fn run(args: Vec<String>) -> Vec<String> {
-    args
-}
-
-fn exec_cargo_make(args: &[String]) -> ExitCode {
-    let status = Command::new("makers")
-        .args(args)
-        .status()
-        .expect("failed to invoke `makers`; is cargo-make installed and on PATH?");
-    match status.code() {
-        Some(code) => ExitCode::from(code as u8),
-        None => ExitCode::FAILURE,
+fn run(args: Vec<String>) -> Result<(), Error> {
+    match cli::parse(args)? {
+        Parsed::Version => {
+            print!("{}", cli::VERSION_TEXT);
+            Ok(())
+        }
+        Parsed::Help => {
+            print!("{}", cli::HELP_TEXT);
+            Ok(())
+        }
+        Parsed::Init { extend: _ } => {
+            unimplemented!("--init is implemented in a later PR")
+        }
+        Parsed::Passthrough { args } => {
+            let argv = makers::build_args(&args);
+            makers::spawn(makers::MAKERS_BINARY, &argv)
+        }
     }
 }
