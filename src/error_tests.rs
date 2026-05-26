@@ -2,6 +2,7 @@ use std::io;
 use std::path::PathBuf;
 
 use super::*;
+use crate::caller::CallerError;
 use crate::cli::ParseError;
 use crate::directive_parser::ParseMakefileError;
 use crate::location::FindError;
@@ -25,6 +26,14 @@ fn exit_code_find_is_1() {
 #[test]
 fn exit_code_parse_makefile_is_1() {
     let err = Error::ParseMakefile(ParseMakefileError::ExtendNotString { kind: "array" });
+    assert_eq!(err.exit_code(), 1);
+}
+
+#[test]
+fn exit_code_caller_is_1() {
+    let err = Error::Caller(CallerError::FallbackPathMissing {
+        path: PathBuf::from("/nope"),
+    });
     assert_eq!(err.exit_code(), 1);
 }
 

@@ -42,7 +42,10 @@ fn run(args: Vec<String>) -> Result<(), Error> {
 fn passthrough(args: Vec<String>) -> Result<(), Error> {
     let cwd = env::current_dir().map_err(Error::Cwd)?;
     let location = location::MakefileLocation::find(&cwd)?;
-    let _parsed = directive_parser::parse(location.clone())?;
-    let argv = makers::build_args(location.dir(), &[], &args);
+    let parsed = directive_parser::parse(location.clone())?;
+    let env_entries: Vec<(String, std::ffi::OsString)> = caller::resolve_caller_env(&parsed, &cwd)?
+        .into_iter()
+        .collect();
+    let argv = makers::build_args(location.dir(), &env_entries, &args);
     makers::spawn(makers::MAKERS_BINARY, &argv)
 }
