@@ -170,3 +170,126 @@ fn directive_combined_with_plain_keys() {
     assert_eq!(parsed.env().file().unwrap().name(), "FOO_DIR");
     assert_eq!(parsed.env().plain_keys(), &["PLAIN_A", "PLAIN_B"]);
 }
+
+#[test]
+fn unknown_directive_value_is_error() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "[env]\n# @makerz = \"weird\"\nFOO = \".\"\n");
+    let err = parse(loc).unwrap_err();
+    assert!(matches!(err, ParseMakefileError::DirectiveUnknownValue { value } if value == "weird"));
+}
+
+#[test]
+fn empty_directive_value_is_error() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "[env]\n# @makerz = \"\"\nFOO = \".\"\n");
+    let err = parse(loc).unwrap_err();
+    assert!(matches!(err, ParseMakefileError::DirectiveUnknownValue { value } if value.is_empty()));
+}
+
+#[test]
+fn directive_before_env_section_is_error() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(
+        tmp.path(),
+        "# @makerz = \"file\"\nFOO = \".\"\n[env]\nBAR = \"x\"\n",
+    );
+    let err = parse(loc).unwrap_err();
+    assert!(matches!(err, ParseMakefileError::DirectiveOutsideEnv { value } if value == "file"));
+}
+
+#[test]
+fn directive_in_tasks_section_is_error() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(
+        tmp.path(),
+        "[env]\nFOO = \"x\"\n[tasks.default]\n# @makerz = \"file\"\ncwd = \".\"\n",
+    );
+    let err = parse(loc).unwrap_err();
+    assert!(matches!(
+        err,
+        ParseMakefileError::DirectiveOutsideEnv { .. }
+    ));
+}
+
+#[test]
+fn directive_at_eof_without_key_is_unbound() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "[env]\nFOO = \"x\"\n# @makerz = \"file\"\n");
+    let err = parse(loc).unwrap_err();
+    assert!(matches!(err, ParseMakefileError::DirectiveUnbound { value } if value == "file"));
+}
+
+#[test]
+fn directive_before_next_section_is_unbound() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(
+        tmp.path(),
+        "[env]\nFOO = \"x\"\n# @makerz = \"file\"\n[tasks.default]\nscript = \"x\"\n",
+    );
+    let err = parse(loc).unwrap_err();
+    assert!(matches!(err, ParseMakefileError::DirectiveUnbound { value } if value == "file"));
+}
+
+#[test]
+fn two_directives_on_same_key_is_error() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(
+        tmp.path(),
+        "[env]\n# @makerz = \"file\"\n# @makerz = \"caller\"\nFOO = \".\"\n",
+    );
+    let err = parse(loc).unwrap_err();
+    assert!(matches!(err, ParseMakefileError::DirectiveOnSameVar { name } if name == "FOO"));
+}
+
+#[test]
+fn two_file_directives_is_error() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(
+        tmp.path(),
+        "[env]\n\
+         # @makerz = \"file\"\n\
+         A_DIR = \".\"\n\
+         # @makerz = \"file\"\n\
+         B_DIR = \".\"\n",
+    );
+    let err = parse(loc).unwrap_err();
+    assert!(matches!(
+        err,
+        ParseMakefileError::DuplicateFile { previous, new } if previous == "A_DIR" && new == "B_DIR"
+    ));
+}
+
+#[test]
+fn two_caller_directives_is_error() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(
+        tmp.path(),
+        "[env]\n\
+         # @makerz = \"caller\"\n\
+         A = \".\"\n\
+         # @makerz = \"caller\"\n\
+         B = \".\"\n",
+    );
+    let err = parse(loc).unwrap_err();
+    assert!(matches!(
+        err,
+        ParseMakefileError::DuplicateCaller { previous, new } if previous == "A" && new == "B"
+    ));
+}
+
+#[test]
+fn fallback_not_string_is_error() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "[env]\n# @makerz = \"file\"\nFOO = 42\n");
+    let err = parse(loc).unwrap_err();
+    assert!(matches!(err, ParseMakefileError::FallbackNotString { name } if name == "FOO"));
+}
+
+#[test]
+fn fallback_array_value_for_directive_is_error() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "[env]\n# @makerz = \"file\"\nFOO = [1, 2]\n");
+    let err = parse(loc).unwrap_err();
+    assert!(matches!(err, ParseMakefileError::FallbackNotString { name } if name == "FOO"));
+}

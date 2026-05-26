@@ -31,6 +31,33 @@ pub enum ParseMakefileError {
 
     #[error("top-level `extend` must be a string (got {kind})")]
     ExtendNotString { kind: &'static str },
+
+    #[error("makerz directive `# @makerz = \"{value}\"` is not in any [env] section")]
+    DirectiveOutsideEnv { value: String },
+
+    #[error("makerz directive `# @makerz = \"{value}\"` is not bound to any env key")]
+    DirectiveUnbound { value: String },
+
+    #[error("multiple makerz directives bind to env key `{name}`")]
+    DirectiveOnSameVar { name: String },
+
+    #[error(
+        "multiple `file` directives in the same Makefile (previous: `{previous}`, new: `{new}`)"
+    )]
+    DuplicateFile { previous: String, new: String },
+
+    #[error(
+        "multiple `caller` directives in the same Makefile (previous: `{previous}`, new: `{new}`)"
+    )]
+    DuplicateCaller { previous: String, new: String },
+
+    #[error(
+        "unknown makerz directive value `{value}` (expected \"file\", \"inherit\", or \"caller\")"
+    )]
+    DirectiveUnknownValue { value: String },
+
+    #[error("env key `{name}` has a makerz directive but its fallback value is not a string")]
+    FallbackNotString { name: String },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -119,20 +146,25 @@ fn parse_env(content: &str, doc: &toml_edit::DocumentMut) -> Result<ParsedEnv, P
     state.finish()
 }
 
-/// Per-line scanner. Tracks current section + pending directives and builds
-/// the [`ParsedEnv`].
-struct EnvScan<'a> {
-    doc: &'a toml_edit::DocumentMut,
-    current_section: Option<String>,
-    pending: Vec<Directive>,
-    env: ParsedEnv,
-}
-
 #[derive(Debug, Clone, Copy)]
 enum Directive {
     File,
     Inherit,
     Caller,
+}
+
+struct PendingDirective {
+    directive: Directive,
+    raw_value: String,
+}
+
+/// Per-line scanner. Tracks current section + pending directives and builds
+/// the [`ParsedEnv`].
+struct EnvScan<'a> {
+    doc: &'a toml_edit::DocumentMut,
+    current_section: Option<String>,
+    pending: Vec<PendingDirective>,
+    env: ParsedEnv,
 }
 
 impl<'a> EnvScan<'a> {
@@ -147,6 +179,7 @@ impl<'a> EnvScan<'a> {
 
     fn feed(&mut self, line: &str) -> Result<(), ParseMakefileError> {
         if let Some(section) = match_section_header(line) {
+            self.flush_unbound_on_section_change()?;
             self.current_section = Some(section);
             return Ok(());
         }
@@ -162,6 +195,13 @@ impl<'a> EnvScan<'a> {
     }
 
     fn finish(self) -> Result<ParsedEnv, ParseMakefileError> {
+        if self.in_env()
+            && let Some(first) = self.pending.into_iter().next()
+        {
+            return Err(ParseMakefileError::DirectiveUnbound {
+                value: first.raw_value,
+            });
+        }
         Ok(self.env)
     }
 
@@ -169,16 +209,37 @@ impl<'a> EnvScan<'a> {
         self.current_section.as_deref() == Some("env")
     }
 
+    fn flush_unbound_on_section_change(&mut self) -> Result<(), ParseMakefileError> {
+        if self.in_env()
+            && let Some(first) = self.pending.first()
+        {
+            return Err(ParseMakefileError::DirectiveUnbound {
+                value: first.raw_value.clone(),
+            });
+        }
+        Ok(())
+    }
+
     fn consume_directive(&mut self, value: &str) -> Result<(), ParseMakefileError> {
         let directive = match value {
             "file" => Directive::File,
             "inherit" => Directive::Inherit,
             "caller" => Directive::Caller,
-            _ => return Ok(()),
+            other => {
+                return Err(ParseMakefileError::DirectiveUnknownValue {
+                    value: other.to_string(),
+                });
+            }
         };
-        if self.in_env() {
-            self.pending.push(directive);
+        if !self.in_env() {
+            return Err(ParseMakefileError::DirectiveOutsideEnv {
+                value: value.to_string(),
+            });
         }
+        self.pending.push(PendingDirective {
+            directive,
+            raw_value: value.to_string(),
+        });
         Ok(())
     }
 
@@ -187,34 +248,60 @@ impl<'a> EnvScan<'a> {
         match pending.as_slice() {
             [] => {
                 self.env.plain_keys.push(key.to_string());
+                Ok(())
             }
-            [directive] => {
-                let fallback = lookup_env_fallback(self.doc, key);
-                let binding = EnvBinding {
-                    name: key.to_string(),
-                    fallback,
-                };
-                match directive {
-                    Directive::File => self.env.file = Some(binding),
-                    Directive::Caller => self.env.caller = Some(binding),
-                    Directive::Inherit => self.env.inherit.push(binding),
+            [only] => self.bind_single(only.directive, key),
+            _ => Err(ParseMakefileError::DirectiveOnSameVar {
+                name: key.to_string(),
+            }),
+        }
+    }
+
+    fn bind_single(&mut self, directive: Directive, key: &str) -> Result<(), ParseMakefileError> {
+        let fallback = lookup_env_fallback(self.doc, key)?;
+        let binding = EnvBinding {
+            name: key.to_string(),
+            fallback,
+        };
+        match directive {
+            Directive::File => {
+                if let Some(prev) = &self.env.file {
+                    return Err(ParseMakefileError::DuplicateFile {
+                        previous: prev.name.clone(),
+                        new: binding.name,
+                    });
                 }
+                self.env.file = Some(binding);
             }
-            _ => {
-                // Multiple directives on the same key — handled in Task 6.
+            Directive::Caller => {
+                if let Some(prev) = &self.env.caller {
+                    return Err(ParseMakefileError::DuplicateCaller {
+                        previous: prev.name.clone(),
+                        new: binding.name,
+                    });
+                }
+                self.env.caller = Some(binding);
+            }
+            Directive::Inherit => {
+                self.env.inherit.push(binding);
             }
         }
         Ok(())
     }
 }
 
-fn lookup_env_fallback(doc: &toml_edit::DocumentMut, key: &str) -> String {
+fn lookup_env_fallback(
+    doc: &toml_edit::DocumentMut,
+    key: &str,
+) -> Result<String, ParseMakefileError> {
     doc.get("env")
         .and_then(|i| i.as_table())
         .and_then(|t| t.get(key))
         .and_then(|i| i.as_str())
-        .unwrap_or("")
-        .to_string()
+        .map(|s| s.to_string())
+        .ok_or_else(|| ParseMakefileError::FallbackNotString {
+            name: key.to_string(),
+        })
 }
 
 fn match_section_header(line: &str) -> Option<String> {
