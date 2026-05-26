@@ -51,6 +51,24 @@ fn missing_fallback_path_is_error() {
 }
 
 #[test]
+fn file_directive_alongside_caller_is_silently_ignored() {
+    let tmp = tempfile::tempdir().unwrap();
+    let parsed = parse_at(
+        tmp.path(),
+        "[config]\nskip_core_tasks = true\n\n\
+         [env]\n# @makerz = \"file\"\nDEMO_DIR = \".\"\n\
+         # @makerz = \"caller\"\nCALLER_DIR = \".\"\n\n\
+         [tasks.default]\ncwd = \"${DEMO_DIR}\"\nscript = \"echo ${CALLER_DIR}\"\n",
+    );
+    let caller_cwd = tmp.path().join("from-here");
+    std::fs::create_dir(&caller_cwd).unwrap();
+
+    let (key, value) = resolve_caller_env(&parsed, &caller_cwd).unwrap().unwrap();
+    assert_eq!(key, "CALLER_DIR");
+    assert_eq!(value, OsString::from(&caller_cwd));
+}
+
+#[test]
 fn relative_fallback_resolves_against_makefile_dir() {
     let tmp = tempfile::tempdir().unwrap();
     std::fs::create_dir(tmp.path().join("nested")).unwrap();
