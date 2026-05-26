@@ -59,3 +59,30 @@ fn table_extend_is_error() {
         "got {err:?}"
     );
 }
+
+#[test]
+fn empty_file_has_empty_env() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "");
+    let parsed = parse(loc).unwrap();
+    assert!(parsed.env().plain_keys().is_empty());
+    assert!(parsed.env().file().is_none());
+    assert!(parsed.env().caller().is_none());
+    assert!(parsed.env().inherit().is_empty());
+}
+
+#[test]
+fn env_keys_collected_in_order_as_plain() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "[env]\nFOO = \"a\"\nBAR = \"b\"\nBAZ = \"c\"\n");
+    let parsed = parse(loc).unwrap();
+    assert_eq!(parsed.env().plain_keys(), &["FOO", "BAR", "BAZ"]);
+}
+
+#[test]
+fn no_env_section_means_empty_env() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "[tasks.default]\nscript = \"echo hi\"\n");
+    let parsed = parse(loc).unwrap();
+    assert!(parsed.env().plain_keys().is_empty());
+}

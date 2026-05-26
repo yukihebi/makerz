@@ -103,11 +103,25 @@ pub fn parse(location: MakefileLocation) -> Result<ParsedMakefile, ParseMakefile
             source,
         })?;
     let extend = parse_extend(&doc)?;
+    let env = parse_env(&content, &doc)?;
     Ok(ParsedMakefile {
         location,
-        env: ParsedEnv::default(),
+        env,
         extend,
     })
+}
+
+fn parse_env(content: &str, doc: &toml_edit::DocumentMut) -> Result<ParsedEnv, ParseMakefileError> {
+    let _ = content;
+    let Some(env_table) = doc.get("env").and_then(|i| i.as_table()) else {
+        return Ok(ParsedEnv::default());
+    };
+
+    let mut env = ParsedEnv::default();
+    for (key, _value) in env_table.iter() {
+        env.plain_keys.push(key.to_string());
+    }
+    Ok(env)
 }
 
 fn parse_extend(doc: &toml_edit::DocumentMut) -> Result<Option<String>, ParseMakefileError> {
