@@ -83,19 +83,16 @@ fn relative_fallback_resolves_against_makefile_dir() {
 }
 
 #[test]
-fn wrong_var_name_for_caller_is_error() {
+fn user_chosen_var_name_is_emitted_as_is() {
     let tmp = tempfile::tempdir().unwrap();
     let parsed = parse_at(
         tmp.path(),
-        "[env]\n# @makerz = \"caller\"\nNOT_CALLER_DIR = \".\"\n",
+        "[env]\n# @makerz = \"caller\"\nMY_CWD = \".\"\n",
     );
-    let err = resolve_caller_env(&parsed, tmp.path()).unwrap_err();
-    assert!(
-        matches!(
-            err,
-            CallerError::VarNameMismatch { expected, ref actual }
-            if expected == "CALLER_DIR" && actual == "NOT_CALLER_DIR"
-        ),
-        "got {err:?}"
-    );
+    let caller_cwd = tmp.path().join("from-here");
+    std::fs::create_dir(&caller_cwd).unwrap();
+
+    let (key, value) = resolve_caller_env(&parsed, &caller_cwd).unwrap().unwrap();
+    assert_eq!(key, "MY_CWD");
+    assert_eq!(value, OsString::from(&caller_cwd));
 }
