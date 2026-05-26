@@ -2,7 +2,6 @@ use std::io;
 
 use thiserror::Error;
 
-use crate::caller::CallerError;
 use crate::cli::ParseError;
 use crate::directive_parser::ParseMakefileError;
 use crate::location::FindError;
@@ -21,10 +20,6 @@ pub enum Error {
     /// Failure while parsing the discovered Makefile.toml.
     #[error("makefile parse error: {0}")]
     ParseMakefile(#[from] ParseMakefileError),
-
-    /// Failure validating the `caller` directive on the active Makefile.toml.
-    #[error("caller directive error: {0}")]
-    Caller(#[from] CallerError),
 
     /// Failure to obtain the current working directory.
     #[error("failed to read current directory: {0}")]
@@ -55,7 +50,6 @@ impl Error {
             Error::ArgParse(_) => 2,
             Error::Find(_) => 1,
             Error::ParseMakefile(_) => 1,
-            Error::Caller(_) => 1,
             Error::Cwd(_) => 1,
             Error::MakersNotFound => 127,
             Error::MakersSpawn(_) => 1,
