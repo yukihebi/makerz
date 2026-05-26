@@ -33,9 +33,16 @@ fn run(args: Vec<String>) -> Result<(), Error> {
         Parsed::Init { extend: _ } => {
             unimplemented!("--init is implemented in a later PR")
         }
-        Parsed::Passthrough { args } => {
-            let argv = makers::build_args(&args);
-            makers::spawn(makers::MAKERS_BINARY, &argv)
-        }
+        Parsed::Passthrough { args } => passthrough(args),
     }
+}
+
+fn passthrough(args: Vec<String>) -> Result<(), Error> {
+    let cwd = env::current_dir().map_err(Error::Cwd)?;
+    let makefile = discovery::find_makefile(&cwd)?;
+    let makefile_dir = makefile
+        .parent()
+        .expect("find_makefile always returns a path with a parent");
+    let argv = makers::build_args(makefile_dir, &args);
+    makers::spawn(makers::MAKERS_BINARY, &argv)
 }
