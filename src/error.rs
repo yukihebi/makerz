@@ -3,7 +3,8 @@ use std::io;
 use thiserror::Error;
 
 use crate::cli::ParseError;
-use crate::discovery::DiscoveryError;
+use crate::directive_parser::ParseMakefileError;
+use crate::location::FindError;
 
 /// Common error type for makerz.
 #[derive(Debug, Error)]
@@ -12,9 +13,13 @@ pub enum Error {
     #[error("argument error: {0}")]
     ArgParse(#[from] ParseError),
 
-    /// Failure to locate a `Makefile.toml` upward from cwd.
-    #[error("discovery error: {0}")]
-    Discovery(#[from] DiscoveryError),
+    /// Failure while locating an upward `Makefile.toml`.
+    #[error("makefile lookup error: {0}")]
+    Find(#[from] FindError),
+
+    /// Failure while parsing the discovered Makefile.toml.
+    #[error("makefile parse error: {0}")]
+    ParseMakefile(#[from] ParseMakefileError),
 
     /// Failure to obtain the current working directory.
     #[error("failed to read current directory: {0}")]
@@ -43,7 +48,8 @@ impl Error {
     pub fn exit_code(&self) -> u8 {
         match self {
             Error::ArgParse(_) => 2,
-            Error::Discovery(_) => 1,
+            Error::Find(_) => 1,
+            Error::ParseMakefile(_) => 1,
             Error::Cwd(_) => 1,
             Error::MakersNotFound => 127,
             Error::MakersSpawn(_) => 1,
