@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::path::PathBuf;
 
 use super::*;
@@ -26,9 +27,9 @@ fn caller_directive_emits_env_entry() {
     );
     let caller_cwd = tmp.path().join("sub");
 
-    let (key, value) = resolve_caller_env(&parsed, &caller_cwd).unwrap();
-    assert_eq!(key, "CALLER_DIR");
-    assert_eq!(value, OsString::from(&caller_cwd));
+    let entry = resolve_caller_env(&parsed, &caller_cwd).unwrap();
+    assert_eq!(entry.key, "CALLER_DIR");
+    assert_eq!(entry.value, OsString::from(&caller_cwd));
 }
 
 #[test]
@@ -43,9 +44,9 @@ fn file_directive_alongside_caller_is_silently_ignored() {
     );
     let caller_cwd = tmp.path().join("from-here");
 
-    let (key, value) = resolve_caller_env(&parsed, &caller_cwd).unwrap();
-    assert_eq!(key, "CALLER_DIR");
-    assert_eq!(value, OsString::from(&caller_cwd));
+    let entry = resolve_caller_env(&parsed, &caller_cwd).unwrap();
+    assert_eq!(entry.key, "CALLER_DIR");
+    assert_eq!(entry.value, OsString::from(&caller_cwd));
 }
 
 #[test]
@@ -57,7 +58,7 @@ fn user_chosen_var_name_is_emitted_as_is() {
     );
     let caller_cwd = tmp.path().join("from-here");
 
-    let (key, value) = resolve_caller_env(&parsed, &caller_cwd).unwrap();
-    assert_eq!(key, "MY_CWD");
-    assert_eq!(value, OsString::from(&caller_cwd));
+    let entry = resolve_caller_env(&parsed, &caller_cwd).unwrap();
+    assert_eq!(entry.key, "MY_CWD");
+    assert_eq!(entry.value, OsString::from(&caller_cwd));
 }

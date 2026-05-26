@@ -31,9 +31,9 @@ fn build_args_prepends_cwd_then_passthrough() {
 
 #[test]
 fn env_entries_emit_dash_dash_env_pairs() {
-    let entries: [(String, OsString); 2] = [
-        ("CALLER_DIR".into(), OsString::from("/caller")),
-        ("X".into(), OsString::from("y")),
+    let entries = [
+        EnvEntry::new("CALLER_DIR", "/caller"),
+        EnvEntry::new("X", "y"),
     ];
     assert_eq!(
         build_args(Path::new("/work"), &entries, &["task".into()]),

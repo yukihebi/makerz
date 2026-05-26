@@ -6,23 +6,17 @@
 //! name. When no `caller` directive is present, no env entry is produced
 //! and `makers` runs with `--cwd` only.
 
-use std::ffi::OsString;
 use std::path::Path;
 
 use crate::directive_parser::ParsedMakefile;
+use crate::makers::EnvEntry;
 
 /// Inspect the active Makefile's `caller` binding and produce the
-/// `(name, value)` pair to inject as `--env`. Returns `None` when the
-/// Makefile has no `caller` directive.
-pub fn resolve_caller_env(
-    parsed: &ParsedMakefile,
-    caller_cwd: &Path,
-) -> Option<(String, OsString)> {
+/// [`EnvEntry`] to inject as `--env`. Returns `None` when the Makefile
+/// has no `caller` directive.
+pub fn resolve_caller_env(parsed: &ParsedMakefile, caller_cwd: &Path) -> Option<EnvEntry> {
     let binding = parsed.env().caller()?;
-    Some((
-        binding.name().to_string(),
-        caller_cwd.as_os_str().to_os_string(),
-    ))
+    Some(EnvEntry::new(binding.name(), caller_cwd.as_os_str()))
 }
 
 #[cfg(test)]
