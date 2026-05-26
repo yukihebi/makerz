@@ -7,7 +7,7 @@ use crate::error::Error;
 #[test]
 fn build_args_prepends_cwd_with_empty_passthrough() {
     assert_eq!(
-        build_args(Path::new("/abs/dir"), &[]),
+        build_args(Path::new("/abs/dir"), &[], &[]),
         vec![OsString::from("--cwd"), OsString::from("/abs/dir")]
     );
 }
@@ -15,12 +15,36 @@ fn build_args_prepends_cwd_with_empty_passthrough() {
 #[test]
 fn build_args_prepends_cwd_then_passthrough() {
     assert_eq!(
-        build_args(Path::new("/abs/dir"), &["task".into(), "--flag".into()]),
+        build_args(
+            Path::new("/abs/dir"),
+            &[],
+            &["task".into(), "--flag".into()]
+        ),
         vec![
             OsString::from("--cwd"),
             OsString::from("/abs/dir"),
             OsString::from("task"),
             OsString::from("--flag"),
+        ]
+    );
+}
+
+#[test]
+fn env_entries_emit_dash_dash_env_pairs() {
+    let entries: [(String, OsString); 2] = [
+        ("CALLER_DIR".into(), OsString::from("/caller")),
+        ("X".into(), OsString::from("y")),
+    ];
+    assert_eq!(
+        build_args(Path::new("/work"), &entries, &["task".into()]),
+        vec![
+            OsString::from("--cwd"),
+            OsString::from("/work"),
+            OsString::from("--env"),
+            OsString::from("CALLER_DIR=/caller"),
+            OsString::from("--env"),
+            OsString::from("X=y"),
+            OsString::from("task"),
         ]
     );
 }
