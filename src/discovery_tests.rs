@@ -1,4 +1,5 @@
 use std::fs;
+use std::path::{Path, PathBuf};
 
 use tempfile::tempdir;
 
@@ -22,6 +23,13 @@ fn finds_makefile_in_parent_dir() {
 
     let found = find_makefile(&sub).unwrap();
     assert_eq!(found.dir(), tmp.path());
+}
+
+#[test]
+fn new_round_trips_through_accessors() {
+    let loc = MakefileLocation::new(PathBuf::from("/abs/dir"));
+    assert_eq!(loc.dir(), Path::new("/abs/dir"));
+    assert_eq!(loc.file(), PathBuf::from("/abs/dir/Makefile.toml"));
 }
 
 #[test]

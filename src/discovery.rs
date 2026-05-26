@@ -13,16 +13,28 @@ pub enum DiscoveryError {
     NotFound { start: PathBuf },
 }
 
-/// Outcome of a successful upward search.
-#[derive(Debug, PartialEq, Eq)]
-pub struct Discovered {
+/// Directory + canonical filename of a `Makefile.toml`.
+///
+/// Constructed by [`find_makefile`] or directly via [`MakefileLocation::new`]
+/// (the latter is used by extend-chain walking, which builds locations from
+/// parent paths rather than from upward search).
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct MakefileLocation {
     dir: PathBuf,
 }
 
-impl Discovered {
-    /// Directory containing the discovered `Makefile.toml`.
+impl MakefileLocation {
+    pub fn new(dir: PathBuf) -> Self {
+        Self { dir }
+    }
+
     pub fn dir(&self) -> &Path {
         &self.dir
+    }
+
+    #[allow(dead_code)]
+    pub fn file(&self) -> PathBuf {
+        self.dir.join("Makefile.toml")
     }
 }
 
@@ -30,12 +42,10 @@ impl Discovered {
 ///
 /// Stops at the filesystem root: returns [`DiscoveryError::NotFound`] when no
 /// `Makefile.toml` exists on the chain from `start` to `/`.
-pub fn find_makefile(start: &Path) -> Result<Discovered, DiscoveryError> {
+pub fn find_makefile(start: &Path) -> Result<MakefileLocation, DiscoveryError> {
     for dir in start.ancestors() {
         if dir.join("Makefile.toml").is_file() {
-            return Ok(Discovered {
-                dir: dir.to_path_buf(),
-            });
+            return Ok(MakefileLocation::new(dir.to_path_buf()));
         }
     }
     Err(DiscoveryError::NotFound {
