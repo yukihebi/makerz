@@ -57,6 +57,9 @@ pub enum ParseMakefileError {
 
     #[error("env key `{name}` has a makerz directive but its fallback value is not a string")]
     FallbackNotString { name: String },
+
+    #[error("malformed makerz directive: `{line}` (expected `# @makerz = \"<value>\"`)")]
+    DirectiveMalformed { line: String },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -185,7 +188,7 @@ impl<'a> EnvScan<'a> {
             self.current_section = Some(section);
             return Ok(());
         }
-        if let Some(value) = match_directive_comment(line) {
+        if let Some(value) = match_directive_comment(line)? {
             return self.consume_directive(&value);
         }
         if self.in_env()
@@ -314,18 +317,40 @@ fn match_section_header(line: &str) -> Option<String> {
     Some(l[..end].trim().to_string())
 }
 
-fn match_directive_comment(line: &str) -> Option<String> {
-    let l = line.trim_start();
-    let l = l.strip_prefix('#')?;
-    let l = l.trim_start();
-    let l = l.strip_prefix("@makerz")?;
-    let l = l.trim_start();
-    let l = l.strip_prefix('=')?;
-    let l = l.trim_start();
-    let l = l.strip_prefix('"')?;
-    let end = l.find('"')?;
-    let value = l[..end].to_string();
-    let rest = l[end + 1..].trim_start();
+fn match_directive_comment(line: &str) -> Result<Option<String>, ParseMakefileError> {
+    let trimmed = line.trim_start();
+    let Some(after_hash) = trimmed.strip_prefix('#') else {
+        return Ok(None);
+    };
+    let body = after_hash.trim_start();
+    let Some(tail) = body.strip_prefix("@makerz") else {
+        return Ok(None);
+    };
+    if !is_directive_token_boundary(tail) {
+        return Ok(None);
+    }
+    parse_directive_tail(tail)
+        .map(Some)
+        .ok_or_else(|| ParseMakefileError::DirectiveMalformed {
+            line: line.to_string(),
+        })
+}
+
+fn is_directive_token_boundary(tail: &str) -> bool {
+    match tail.chars().next() {
+        None => true,
+        Some(c) => c == '=' || c.is_whitespace(),
+    }
+}
+
+fn parse_directive_tail(tail: &str) -> Option<String> {
+    let s = tail.trim_start();
+    let s = s.strip_prefix('=')?;
+    let s = s.trim_start();
+    let s = s.strip_prefix('"')?;
+    let end = s.find('"')?;
+    let value = s[..end].to_string();
+    let rest = s[end + 1..].trim_start();
     if !rest.is_empty() && !rest.starts_with('#') {
         return None;
     }

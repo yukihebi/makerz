@@ -293,3 +293,82 @@ fn fallback_array_value_for_directive_is_error() {
     let err = parse(loc).unwrap_err();
     assert!(matches!(err, ParseMakefileError::FallbackNotString { name } if name == "FOO"));
 }
+
+#[test]
+fn directive_intent_without_equals_is_malformed() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "[env]\n# @makerz\nFOO = \".\"\n");
+    let err = parse(loc).unwrap_err();
+    assert!(
+        matches!(err, ParseMakefileError::DirectiveMalformed { .. }),
+        "got {err:?}"
+    );
+}
+
+#[test]
+fn directive_intent_missing_quotes_is_malformed() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "[env]\n# @makerz = file\nFOO = \".\"\n");
+    let err = parse(loc).unwrap_err();
+    assert!(
+        matches!(err, ParseMakefileError::DirectiveMalformed { .. }),
+        "got {err:?}"
+    );
+}
+
+#[test]
+fn directive_intent_unterminated_quote_is_malformed() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "[env]\n# @makerz = \"file\nFOO = \".\"\n");
+    let err = parse(loc).unwrap_err();
+    assert!(
+        matches!(err, ParseMakefileError::DirectiveMalformed { .. }),
+        "got {err:?}"
+    );
+}
+
+#[test]
+fn directive_intent_with_trailing_garbage_is_malformed() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(
+        tmp.path(),
+        "[env]\n# @makerz = \"file\" garbage\nFOO_DIR = \".\"\n",
+    );
+    let err = parse(loc).unwrap_err();
+    assert!(
+        matches!(err, ParseMakefileError::DirectiveMalformed { .. }),
+        "got {err:?}"
+    );
+}
+
+#[test]
+fn at_makerz_substring_in_non_directive_comment_is_silent() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(
+        tmp.path(),
+        "[env]\n# this comment mentions @makerz directives in passing\nFOO = \".\"\n",
+    );
+    let parsed = parse(loc).unwrap();
+    assert_eq!(parsed.env().plain_keys(), &["FOO"]);
+    assert!(parsed.env().file().is_none());
+}
+
+#[test]
+fn makerz_extended_identifier_is_silent() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "[env]\n# @makerzx = \"file\"\nFOO = \".\"\n");
+    let parsed = parse(loc).unwrap();
+    assert_eq!(parsed.env().plain_keys(), &["FOO"]);
+    assert!(parsed.env().file().is_none());
+}
+
+#[test]
+fn directive_trailing_comment_is_allowed() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(
+        tmp.path(),
+        "[env]\n# @makerz = \"file\"  # bind file to FOO_DIR\nFOO_DIR = \".\"\n",
+    );
+    let parsed = parse(loc).unwrap();
+    assert_eq!(parsed.env().file().unwrap().name(), "FOO_DIR");
+}
