@@ -10,12 +10,16 @@ fn parse_at(dir: &std::path::Path, content: &str) -> directive_parser::ParsedMak
     directive_parser::parse(MakefileLocation::new(dir.to_path_buf())).unwrap()
 }
 
+fn absolutize(path: &std::path::Path) -> std::path::PathBuf {
+    std::path::absolute(path).unwrap()
+}
+
 #[test]
 fn no_caller_directive_returns_none() {
     let tmp = tempfile::tempdir().unwrap();
     let parsed = parse_at(tmp.path(), "[env]\nFOO = \"x\"\n");
     let caller_cwd = PathBuf::from("/whatever");
-    assert!(resolve_caller_env(&parsed, &caller_cwd).is_none());
+    assert!(resolve_caller_env(&parsed, &caller_cwd).unwrap().is_none());
 }
 
 #[test]
@@ -28,8 +32,8 @@ fn caller_directive_emits_env_entry() {
     let caller_cwd = tmp.path().join("sub");
 
     assert_eq!(
-        resolve_caller_env(&parsed, &caller_cwd),
-        Some(EnvEntry::new("CALLER_DIR", caller_cwd.as_os_str())),
+        resolve_caller_env(&parsed, &caller_cwd).unwrap(),
+        Some(EnvEntry::new("CALLER_DIR", absolutize(&caller_cwd))),
     );
 }
 
@@ -46,8 +50,8 @@ fn file_directive_alongside_caller_is_silently_ignored() {
     let caller_cwd = tmp.path().join("from-here");
 
     assert_eq!(
-        resolve_caller_env(&parsed, &caller_cwd),
-        Some(EnvEntry::new("CALLER_DIR", caller_cwd.as_os_str())),
+        resolve_caller_env(&parsed, &caller_cwd).unwrap(),
+        Some(EnvEntry::new("CALLER_DIR", absolutize(&caller_cwd))),
     );
 }
 
@@ -61,7 +65,21 @@ fn user_chosen_var_name_is_emitted_as_is() {
     let caller_cwd = tmp.path().join("from-here");
 
     assert_eq!(
-        resolve_caller_env(&parsed, &caller_cwd),
-        Some(EnvEntry::new("MY_CWD", caller_cwd.as_os_str())),
+        resolve_caller_env(&parsed, &caller_cwd).unwrap(),
+        Some(EnvEntry::new("MY_CWD", absolutize(&caller_cwd))),
     );
+}
+
+#[test]
+fn relative_caller_cwd_is_absolutized() {
+    let tmp = tempfile::tempdir().unwrap();
+    let parsed = parse_at(
+        tmp.path(),
+        "[env]\n# @makerz = \"caller\"\nCALLER_DIR = \".\"\n",
+    );
+    let relative = PathBuf::from("some/relative/path");
+
+    let entry = resolve_caller_env(&parsed, &relative).unwrap().unwrap();
+    let expected_value = std::path::absolute(&relative).unwrap();
+    assert_eq!(entry, EnvEntry::new("CALLER_DIR", expected_value));
 }

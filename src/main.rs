@@ -49,7 +49,7 @@ fn passthrough(args: Vec<String>) -> Result<(), Error> {
     let parsed = parse_makefile(location.clone())?;
 
     let mut invocation = Invocation::new(location.dir().to_path_buf(), args);
-    if let Some(entry) = resolve_caller_env(&parsed, &cwd) {
+    if let Some(entry) = resolve_caller_env(&parsed, &cwd).map_err(Error::Cwd)? {
         invocation.push_env(entry);
     }
     invocation.run()
