@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 use thiserror::Error;
 
-use crate::discovery::MakefileLocation;
+use crate::location::MakefileLocation;
 
 #[derive(Debug, Error)]
 pub enum ParseMakefileError {

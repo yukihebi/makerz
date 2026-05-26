@@ -3,7 +3,7 @@ use std::fs;
 use tempfile::tempdir;
 
 use super::*;
-use crate::discovery::MakefileLocation;
+use crate::location::MakefileLocation;
 
 fn write_makefile(dir: &std::path::Path, content: &str) -> MakefileLocation {
     fs::write(dir.join("Makefile.toml"), content).unwrap();

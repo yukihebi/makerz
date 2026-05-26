@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use super::*;
 use crate::cli::ParseError;
 use crate::directive_parser::ParseMakefileError;
-use crate::discovery::DiscoveryError;
+use crate::location::FindError;
 
 #[test]
 fn exit_code_arg_parse_is_2() {
@@ -15,8 +15,8 @@ fn exit_code_arg_parse_is_2() {
 }
 
 #[test]
-fn exit_code_discovery_is_1() {
-    let err = Error::Discovery(DiscoveryError::NotFound {
+fn exit_code_find_is_1() {
+    let err = Error::Find(FindError::NotFound {
         start: PathBuf::from("/nowhere"),
     });
     assert_eq!(err.exit_code(), 1);

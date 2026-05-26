@@ -3,8 +3,8 @@ use std::process::ExitCode;
 
 mod cli;
 mod directive_parser;
-mod discovery;
 mod error;
+mod location;
 mod makers;
 
 use cli::Parsed;
@@ -40,7 +40,7 @@ fn run(args: Vec<String>) -> Result<(), Error> {
 
 fn passthrough(args: Vec<String>) -> Result<(), Error> {
     let cwd = env::current_dir().map_err(Error::Cwd)?;
-    let location = discovery::find_makefile(&cwd)?;
+    let location = location::MakefileLocation::find(&cwd)?;
     let _parsed = directive_parser::parse(location.clone())?;
     let argv = makers::build_args(location.dir(), &args);
     makers::spawn(makers::MAKERS_BINARY, &argv)
