@@ -15,10 +15,8 @@ pub enum FindError {
 
 /// Directory + canonical filename of a `Makefile.toml`.
 ///
-/// Constructed by [`MakefileLocation::find`] (upward search from a start
-/// directory) or directly via [`MakefileLocation::new`]. The latter lets
-/// callers construct a location from a known directory — for example when
-/// walking an extend chain to resolve parent Makefiles.
+/// Constructed by [`MakefileLocation::find`] (upward search) or directly
+/// via [`MakefileLocation::new`] from a known directory.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct MakefileLocation {
     dir: PathBuf,
