@@ -1,25 +1,26 @@
 use std::ffi::OsString;
-use std::path::Path;
+use std::path::PathBuf;
 
 use super::*;
 use crate::error::Error;
 
 #[test]
-fn build_args_prepends_cwd_with_empty_passthrough() {
+fn invocation_with_no_env_or_args_emits_only_cwd() {
+    let inv = Invocation::new(PathBuf::from("/abs/dir"), Vec::new());
     assert_eq!(
-        build_args(Path::new("/abs/dir"), &[], &[]),
+        inv.to_argv(),
         vec![OsString::from("--cwd"), OsString::from("/abs/dir")]
     );
 }
 
 #[test]
-fn build_args_prepends_cwd_then_passthrough() {
+fn invocation_emits_cwd_then_passthrough() {
+    let inv = Invocation::new(
+        PathBuf::from("/abs/dir"),
+        vec!["task".into(), "--flag".into()],
+    );
     assert_eq!(
-        build_args(
-            Path::new("/abs/dir"),
-            &[],
-            &["task".into(), "--flag".into()]
-        ),
+        inv.to_argv(),
         vec![
             OsString::from("--cwd"),
             OsString::from("/abs/dir"),
@@ -36,19 +37,18 @@ fn env_entry_to_argv_renders_dash_dash_env_pair() {
         entry.to_argv(),
         [
             OsString::from("--env"),
-            OsString::from("CALLER_DIR=/caller")
+            OsString::from("CALLER_DIR=/caller"),
         ],
     );
 }
 
 #[test]
-fn env_entries_emit_dash_dash_env_pairs() {
-    let entries = [
-        EnvEntry::new("CALLER_DIR", "/caller"),
-        EnvEntry::new("X", "y"),
-    ];
+fn invocation_emits_env_pairs_between_cwd_and_passthrough() {
+    let mut inv = Invocation::new(PathBuf::from("/work"), vec!["task".into()]);
+    inv.push_env(EnvEntry::new("CALLER_DIR", "/caller"));
+    inv.push_env(EnvEntry::new("X", "y"));
     assert_eq!(
-        build_args(Path::new("/work"), &entries, &["task".into()]),
+        inv.to_argv(),
         vec![
             OsString::from("--cwd"),
             OsString::from("/work"),
@@ -57,6 +57,26 @@ fn env_entries_emit_dash_dash_env_pairs() {
             OsString::from("--env"),
             OsString::from("X=y"),
             OsString::from("task"),
+        ]
+    );
+}
+
+#[test]
+fn extend_env_appends_in_order() {
+    let mut inv = Invocation::new(PathBuf::from("/work"), Vec::new());
+    inv.push_env(EnvEntry::new("FIRST", "1"));
+    inv.extend_env([EnvEntry::new("SECOND", "2"), EnvEntry::new("THIRD", "3")]);
+    assert_eq!(
+        inv.to_argv(),
+        vec![
+            OsString::from("--cwd"),
+            OsString::from("/work"),
+            OsString::from("--env"),
+            OsString::from("FIRST=1"),
+            OsString::from("--env"),
+            OsString::from("SECOND=2"),
+            OsString::from("--env"),
+            OsString::from("THIRD=3"),
         ]
     );
 }

@@ -8,8 +8,12 @@ mod error;
 mod location;
 mod makers;
 
+use caller::resolve_caller_env;
 use cli::Parsed;
+use directive_parser::parse as parse_makefile;
 use error::Error;
+use location::MakefileLocation;
+use makers::Invocation;
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -41,14 +45,12 @@ fn run(args: Vec<String>) -> Result<(), Error> {
 
 fn passthrough(args: Vec<String>) -> Result<(), Error> {
     let cwd = env::current_dir().map_err(Error::Cwd)?;
-    let location = location::MakefileLocation::find(&cwd)?;
-    let parsed = directive_parser::parse(location.clone())?;
+    let location = MakefileLocation::find(&cwd)?;
+    let parsed = parse_makefile(location.clone())?;
 
-    let mut env_entries: Vec<makers::EnvEntry> = Vec::new();
-    if let Some(entry) = caller::resolve_caller_env(&parsed, &cwd) {
-        env_entries.push(entry);
+    let mut invocation = Invocation::new(location.dir().to_path_buf(), args);
+    if let Some(entry) = resolve_caller_env(&parsed, &cwd) {
+        invocation.push_env(entry);
     }
-
-    let argv = makers::build_args(location.dir(), &env_entries, &args);
-    makers::spawn(makers::MAKERS_BINARY, &argv)
+    invocation.run()
 }
