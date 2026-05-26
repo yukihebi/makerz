@@ -39,10 +39,7 @@ fn run(args: Vec<String>) -> Result<(), Error> {
 
 fn passthrough(args: Vec<String>) -> Result<(), Error> {
     let cwd = env::current_dir().map_err(Error::Cwd)?;
-    let makefile = discovery::find_makefile(&cwd)?;
-    let makefile_dir = makefile
-        .parent()
-        .expect("find_makefile always returns a path with a parent");
-    let argv = makers::build_args(makefile_dir, &args);
+    let discovered = discovery::find_makefile(&cwd)?;
+    let argv = makers::build_args(discovered.dir(), &args);
     makers::spawn(makers::MAKERS_BINARY, &argv)
 }

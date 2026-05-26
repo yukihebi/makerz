@@ -13,16 +13,34 @@ pub enum DiscoveryError {
     NotFound { start: PathBuf },
 }
 
-/// Walk up from `start` looking for `Makefile.toml`. Returns the full path to
-/// the discovered file (not just the directory).
+/// Outcome of a successful upward search.
+///
+/// The fields recorded here are populated by [`find_makefile`] at construction
+/// time, so callers never have to maintain a `.parent()` invariant. Additional
+/// accessors (e.g. the discovered file path) can be added as later layers need
+/// them, without changing the API style.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Discovered {
+    dir: PathBuf,
+}
+
+impl Discovered {
+    /// Directory containing the discovered `Makefile.toml`.
+    pub fn dir(&self) -> &Path {
+        &self.dir
+    }
+}
+
+/// Walk up from `start` looking for `Makefile.toml`.
 ///
 /// Stops at the filesystem root: returns [`DiscoveryError::NotFound`] when no
 /// `Makefile.toml` exists on the chain from `start` to `/`.
-pub fn find_makefile(start: &Path) -> Result<PathBuf, DiscoveryError> {
+pub fn find_makefile(start: &Path) -> Result<Discovered, DiscoveryError> {
     for dir in start.ancestors() {
-        let candidate = dir.join("Makefile.toml");
-        if candidate.is_file() {
-            return Ok(candidate);
+        if dir.join("Makefile.toml").is_file() {
+            return Ok(Discovered {
+                dir: dir.to_path_buf(),
+            });
         }
     }
     Err(DiscoveryError::NotFound {
