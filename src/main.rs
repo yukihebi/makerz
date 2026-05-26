@@ -2,6 +2,7 @@ use std::env;
 use std::process::ExitCode;
 
 mod cli;
+mod discovery;
 mod error;
 mod makers;
 
