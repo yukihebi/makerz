@@ -56,7 +56,6 @@ fn ignores_directory_named_makefile_toml() {
 
     let sub = tmp.path().join("sub");
     fs::create_dir(&sub).unwrap();
-    // A *directory* named Makefile.toml — must be skipped.
     fs::create_dir(sub.join("Makefile.toml")).unwrap();
 
     let found = find_makefile(&sub).unwrap();

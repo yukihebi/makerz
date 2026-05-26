@@ -10,12 +10,12 @@ pub const MAKERS_BINARY: &str = "makers";
 
 /// Build the argv that `makers` should be invoked with.
 ///
-/// `makefile_dir` is prepended as `--cwd <dir>` so that the discovered
-/// `Makefile.toml` is resolved consistently regardless of the shell's cwd.
-/// Returns [`OsString`]s to preserve non-UTF-8 paths losslessly on Unix.
+/// `makefile_dir` is prepended as `--cwd <dir>` so `makers` operates from that
+/// directory regardless of the shell's cwd. [`OsString`] preserves non-UTF-8
+/// names losslessly on Unix.
 ///
-/// Any `--cwd` on the passthrough side is intentionally not parsed here; if
-/// the user supplied one, `makers` itself decides which wins.
+/// A `--cwd` on the passthrough side is left alone; if the user supplied one,
+/// `makers` itself decides which wins.
 pub fn build_args(makefile_dir: &Path, passthrough: &[String]) -> Vec<OsString> {
     let mut args = Vec::with_capacity(passthrough.len() + 2);
     args.push(OsString::from("--cwd"));

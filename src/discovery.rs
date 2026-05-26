@@ -14,11 +14,6 @@ pub enum DiscoveryError {
 }
 
 /// Outcome of a successful upward search.
-///
-/// The fields recorded here are populated by [`find_makefile`] at construction
-/// time, so callers never have to maintain a `.parent()` invariant. Additional
-/// accessors (e.g. the discovered file path) can be added as later layers need
-/// them, without changing the API style.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Discovered {
     dir: PathBuf,
