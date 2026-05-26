@@ -1,12 +1,26 @@
+use std::path::Path;
+
 use super::*;
 use crate::error::Error;
 
 #[test]
-fn build_args_is_identity_for_passthrough() {
-    assert_eq!(build_args(&[]), Vec::<String>::new());
+fn build_args_prepends_cwd_with_empty_passthrough() {
     assert_eq!(
-        build_args(&["task".into(), "--flag".into()]),
-        vec!["task".to_string(), "--flag".into()]
+        build_args(Path::new("/abs/dir"), &[]),
+        vec!["--cwd".to_string(), "/abs/dir".to_string()]
+    );
+}
+
+#[test]
+fn build_args_prepends_cwd_then_passthrough() {
+    assert_eq!(
+        build_args(Path::new("/abs/dir"), &["task".into(), "--flag".into()]),
+        vec![
+            "--cwd".to_string(),
+            "/abs/dir".to_string(),
+            "task".into(),
+            "--flag".into(),
+        ]
     );
 }
 
