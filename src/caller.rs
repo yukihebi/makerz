@@ -45,6 +45,10 @@ pub fn resolve_caller_env(
             actual: binding.name().to_string(),
         });
     }
+    let resolved = parsed.location().dir().join(binding.fallback());
+    if !resolved.exists() {
+        return Err(CallerError::FallbackPathMissing { path: resolved });
+    }
     Ok(Some((
         CALLER_VAR.to_string(),
         caller_cwd.as_os_str().to_os_string(),

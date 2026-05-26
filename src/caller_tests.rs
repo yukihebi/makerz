@@ -33,6 +33,38 @@ fn caller_directive_emits_env_entry() {
 }
 
 #[test]
+fn missing_fallback_path_is_error() {
+    let tmp = tempfile::tempdir().unwrap();
+    let parsed = parse_at(
+        tmp.path(),
+        "[env]\n# @makerz = \"caller\"\nCALLER_DIR = \"does/not/exist\"\n",
+    );
+    let err = resolve_caller_env(&parsed, tmp.path()).unwrap_err();
+    let expected_missing = tmp.path().join("does/not/exist");
+    assert!(
+        matches!(
+            err,
+            CallerError::FallbackPathMissing { ref path } if path == &expected_missing
+        ),
+        "got {err:?}"
+    );
+}
+
+#[test]
+fn relative_fallback_resolves_against_makefile_dir() {
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::create_dir(tmp.path().join("nested")).unwrap();
+    let parsed = parse_at(
+        tmp.path(),
+        "[env]\n# @makerz = \"caller\"\nCALLER_DIR = \"nested\"\n",
+    );
+    let caller_cwd = tmp.path().join("nested");
+    let (key, value) = resolve_caller_env(&parsed, &caller_cwd).unwrap().unwrap();
+    assert_eq!(key, "CALLER_DIR");
+    assert_eq!(value, OsString::from(&caller_cwd));
+}
+
+#[test]
 fn wrong_var_name_for_caller_is_error() {
     let tmp = tempfile::tempdir().unwrap();
     let parsed = parse_at(
