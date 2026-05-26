@@ -33,10 +33,16 @@ pub enum CallerError {
 /// `(name, value)` pair to inject as `--env`. Returns `Ok(None)` when the
 /// Makefile has no `caller` directive.
 pub fn resolve_caller_env(
-    _parsed: &ParsedMakefile,
-    _caller_cwd: &Path,
+    parsed: &ParsedMakefile,
+    caller_cwd: &Path,
 ) -> Result<Option<(String, OsString)>, CallerError> {
-    Ok(None)
+    let Some(binding) = parsed.env().caller() else {
+        return Ok(None);
+    };
+    Ok(Some((
+        binding.name().to_string(),
+        caller_cwd.as_os_str().to_os_string(),
+    )))
 }
 
 #[cfg(test)]
