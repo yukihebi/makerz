@@ -39,8 +39,14 @@ pub fn resolve_caller_env(
     let Some(binding) = parsed.env().caller() else {
         return Ok(None);
     };
+    if binding.name() != CALLER_VAR {
+        return Err(CallerError::VarNameMismatch {
+            expected: CALLER_VAR,
+            actual: binding.name().to_string(),
+        });
+    }
     Ok(Some((
-        binding.name().to_string(),
+        CALLER_VAR.to_string(),
         caller_cwd.as_os_str().to_os_string(),
     )))
 }

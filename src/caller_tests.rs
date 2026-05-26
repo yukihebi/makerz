@@ -31,3 +31,21 @@ fn caller_directive_emits_env_entry() {
     assert_eq!(key, "CALLER_DIR");
     assert_eq!(value, OsString::from(&caller_cwd));
 }
+
+#[test]
+fn wrong_var_name_for_caller_is_error() {
+    let tmp = tempfile::tempdir().unwrap();
+    let parsed = parse_at(
+        tmp.path(),
+        "[env]\n# @makerz = \"caller\"\nNOT_CALLER_DIR = \".\"\n",
+    );
+    let err = resolve_caller_env(&parsed, tmp.path()).unwrap_err();
+    assert!(
+        matches!(
+            err,
+            CallerError::VarNameMismatch { expected, ref actual }
+            if expected == "CALLER_DIR" && actual == "NOT_CALLER_DIR"
+        ),
+        "got {err:?}"
+    );
+}
