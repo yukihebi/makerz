@@ -5,19 +5,13 @@ use std::process::Command;
 
 use crate::error::Error;
 
-/// Name of the `makers` binary on PATH.
 const MAKERS_BINARY: &str = "makers";
 
 /// One `--env KEY=VALUE` pair to be passed to `makers`.
-///
-/// Producers (`caller` now, future `env-resolution`) emit these and the
-/// main flow pushes them onto an [`Invocation`]. A named type keeps the
-/// producer/consumer contract explicit when several producers contribute
-/// to the same env set.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnvEntry {
-    pub key: String,
-    pub value: OsString,
+    key: String,
+    value: OsString,
 }
 
 impl EnvEntry {
@@ -28,7 +22,7 @@ impl EnvEntry {
         }
     }
 
-    /// Render as the `--env`, `KEY=VALUE` argv token pair `makers` expects.
+    /// Render as the `--env`, `KEY=VALUE` argv token pair.
     pub fn to_argv(&self) -> [OsString; 2] {
         let mut kv = OsString::with_capacity(self.key.len() + 1 + self.value.len());
         kv.push(&self.key);
@@ -40,11 +34,6 @@ impl EnvEntry {
 
 /// One pending `makers` invocation: `--cwd` + accumulated env overrides +
 /// passthrough args.
-///
-/// Built up by `main::passthrough` (and later flows) by `push_env` /
-/// `extend_env` from each producer, then handed off to [`Invocation::run`].
-/// Splitting [`Self::to_argv`] from [`Self::run`] keeps argv assembly
-/// unit-testable without spawning the real binary.
 #[derive(Debug)]
 pub struct Invocation {
     cwd: PathBuf,
@@ -70,9 +59,8 @@ impl Invocation {
         self.env_entries.extend(entries);
     }
 
-    /// Render the full `makers` argv: `--cwd <dir>` then each env entry then
-    /// passthrough. A `--cwd` on the passthrough side is left alone; if the
-    /// user supplied one, `makers` itself decides which wins.
+    /// Render the full `makers` argv: `--cwd <dir>`, env entries, then
+    /// passthrough verbatim (no `--cwd` filtering on passthrough).
     pub fn to_argv(&self) -> Vec<OsString> {
         let mut args = Vec::with_capacity(self.passthrough.len() + 2 + self.env_entries.len() * 2);
         args.push(OsString::from("--cwd"));
@@ -84,13 +72,12 @@ impl Invocation {
         args
     }
 
-    /// Spawn `makers` with the rendered argv. Inherits stdio.
+    /// Spawn `makers` with the rendered argv, inheriting stdio.
     pub fn run(&self) -> Result<(), Error> {
         spawn(MAKERS_BINARY, &self.to_argv())
     }
 }
 
-/// Spawn `binary` with `args`, inheriting stdio, and translate the result into [`Error`].
 fn spawn(binary: &str, args: &[OsString]) -> Result<(), Error> {
     let status = match Command::new(binary).args(args).status() {
         Ok(s) => s,

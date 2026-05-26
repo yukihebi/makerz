@@ -1,9 +1,9 @@
-use std::ffi::OsString;
 use std::path::PathBuf;
 
 use super::*;
 use crate::directive_parser;
 use crate::location::MakefileLocation;
+use crate::makers::EnvEntry;
 
 fn parse_at(dir: &std::path::Path, content: &str) -> directive_parser::ParsedMakefile {
     std::fs::write(dir.join("Makefile.toml"), content).unwrap();
@@ -27,9 +27,10 @@ fn caller_directive_emits_env_entry() {
     );
     let caller_cwd = tmp.path().join("sub");
 
-    let entry = resolve_caller_env(&parsed, &caller_cwd).unwrap();
-    assert_eq!(entry.key, "CALLER_DIR");
-    assert_eq!(entry.value, OsString::from(&caller_cwd));
+    assert_eq!(
+        resolve_caller_env(&parsed, &caller_cwd),
+        Some(EnvEntry::new("CALLER_DIR", caller_cwd.as_os_str())),
+    );
 }
 
 #[test]
@@ -44,9 +45,10 @@ fn file_directive_alongside_caller_is_silently_ignored() {
     );
     let caller_cwd = tmp.path().join("from-here");
 
-    let entry = resolve_caller_env(&parsed, &caller_cwd).unwrap();
-    assert_eq!(entry.key, "CALLER_DIR");
-    assert_eq!(entry.value, OsString::from(&caller_cwd));
+    assert_eq!(
+        resolve_caller_env(&parsed, &caller_cwd),
+        Some(EnvEntry::new("CALLER_DIR", caller_cwd.as_os_str())),
+    );
 }
 
 #[test]
@@ -58,7 +60,8 @@ fn user_chosen_var_name_is_emitted_as_is() {
     );
     let caller_cwd = tmp.path().join("from-here");
 
-    let entry = resolve_caller_env(&parsed, &caller_cwd).unwrap();
-    assert_eq!(entry.key, "MY_CWD");
-    assert_eq!(entry.value, OsString::from(&caller_cwd));
+    assert_eq!(
+        resolve_caller_env(&parsed, &caller_cwd),
+        Some(EnvEntry::new("MY_CWD", caller_cwd.as_os_str())),
+    );
 }

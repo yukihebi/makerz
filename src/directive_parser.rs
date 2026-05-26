@@ -1,9 +1,7 @@
 //! Parse a single `Makefile.toml` into structured directive info.
 //!
-//! The binary parses the discovered Makefile on every run so directive errors
-//! surface before `makers` is launched. The parsed data is otherwise discarded
-//! at the wrapper level today; future caller-env injection and extend-chain
-//! resolution consume the structured output.
+//! Run on every invocation so directive errors surface before `makers` is
+//! launched.
 
 use std::fs;
 use std::path::PathBuf;
