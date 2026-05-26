@@ -28,14 +28,23 @@ impl EnvEntry {
             value: value.into(),
         }
     }
+
+    /// Render as the `--env`, `KEY=VALUE` argv token pair `makers` expects.
+    pub fn to_argv(&self) -> [OsString; 2] {
+        let mut kv = OsString::with_capacity(self.key.len() + 1 + self.value.len());
+        kv.push(&self.key);
+        kv.push("=");
+        kv.push(&self.value);
+        [OsString::from("--env"), kv]
+    }
 }
 
 /// Build the argv that `makers` should be invoked with.
 ///
 /// `makefile_dir` is prepended as `--cwd <dir>` so `makers` operates from that
-/// directory regardless of the shell's cwd. Each [`EnvEntry`] is emitted as
-/// `--env KEY=VALUE`, preserving order. [`OsString`] preserves non-UTF-8
-/// names losslessly on Unix.
+/// directory regardless of the shell's cwd. Each [`EnvEntry`] is rendered
+/// via [`EnvEntry::to_argv`], preserving order. [`OsString`] preserves
+/// non-UTF-8 names losslessly on Unix.
 ///
 /// A `--cwd` on the passthrough side is left alone; if the user supplied one,
 /// `makers` itself decides which wins.
@@ -48,19 +57,10 @@ pub fn build_args(
     args.push(OsString::from("--cwd"));
     args.push(makefile_dir.as_os_str().to_os_string());
     for entry in env_entries {
-        args.push(OsString::from("--env"));
-        args.push(render_kv(&entry.key, &entry.value));
+        args.extend(entry.to_argv());
     }
     args.extend(passthrough.iter().map(OsString::from));
     args
-}
-
-fn render_kv(key: &str, value: &OsString) -> OsString {
-    let mut s = OsString::with_capacity(key.len() + 1 + value.len());
-    s.push(key);
-    s.push("=");
-    s.push(value);
-    s
 }
 
 /// Spawn `binary` with `args`, inheriting stdio, and translate the result into [`Error`].

@@ -30,6 +30,18 @@ fn build_args_prepends_cwd_then_passthrough() {
 }
 
 #[test]
+fn env_entry_to_argv_renders_dash_dash_env_pair() {
+    let entry = EnvEntry::new("CALLER_DIR", "/caller");
+    assert_eq!(
+        entry.to_argv(),
+        [
+            OsString::from("--env"),
+            OsString::from("CALLER_DIR=/caller")
+        ],
+    );
+}
+
+#[test]
 fn env_entries_emit_dash_dash_env_pairs() {
     let entries = [
         EnvEntry::new("CALLER_DIR", "/caller"),

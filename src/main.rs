@@ -43,9 +43,12 @@ fn passthrough(args: Vec<String>) -> Result<(), Error> {
     let cwd = env::current_dir().map_err(Error::Cwd)?;
     let location = location::MakefileLocation::find(&cwd)?;
     let parsed = directive_parser::parse(location.clone())?;
-    let env_entries: Vec<makers::EnvEntry> = caller::resolve_caller_env(&parsed, &cwd)
-        .into_iter()
-        .collect();
+
+    let mut env_entries: Vec<makers::EnvEntry> = Vec::new();
+    if let Some(entry) = caller::resolve_caller_env(&parsed, &cwd) {
+        env_entries.push(entry);
+    }
+
     let argv = makers::build_args(location.dir(), &env_entries, &args);
     makers::spawn(makers::MAKERS_BINARY, &argv)
 }
