@@ -5,9 +5,6 @@ use thiserror::Error;
 use crate::cli::ParseError;
 
 /// Common error type for makerz.
-///
-/// Variants here are the minimum required by the cli-skeleton scope.
-/// Subsequent PRs add variants for discovery, parsing, and resolution failures.
 #[derive(Debug, Error)]
 pub enum Error {
     /// Failure to parse makerz's own CLI arguments.
@@ -22,13 +19,12 @@ pub enum Error {
     #[error("failed to spawn `makers`: {0}")]
     MakersSpawn(#[source] io::Error),
 
-    /// `makers` ran and exited with this code. Non-zero by construction:
-    /// the spawn path only constructs this variant after `status.success()` is false.
+    /// Exit code from `makers`. Non-zero by construction.
     #[error("`makers` exited with code {0}")]
     MakersExited(i32),
 
-    /// `makers` exited without surfacing a code. On Unix this means a fatal signal;
-    /// Windows always reports a code so this variant is Unix-only in practice.
+    /// `makers` exited without a code. Unix-only in practice (signal-killed);
+    /// Windows always surfaces a code.
     #[error("`makers` terminated by signal")]
     MakersTerminatedBySignal,
 }

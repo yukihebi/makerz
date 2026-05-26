@@ -3,9 +3,6 @@ use std::vec::IntoIter;
 use thiserror::Error;
 
 /// Result of parsing makerz's own CLI flags.
-///
-/// `--version`, `--help`, `--init`, and `--extend` are consumed by makerz.
-/// Everything else is collected into `Passthrough::args` to be forwarded to `makers`.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Parsed {
     /// `--version`: print makerz's version.
@@ -19,9 +16,6 @@ pub enum Parsed {
 }
 
 /// Distinct reasons a makerz CLI parse can fail.
-///
-/// Wrapped by [`crate::error::Error::ArgParse`]; surfaced directly to unit tests
-/// so assertions can match on the variant instead of the rendered message.
 #[derive(Debug, PartialEq, Eq, Error)]
 pub enum ParseError {
     /// `--extend` was the last token; no value followed.
@@ -46,11 +40,8 @@ pub fn parse(args: Vec<String>) -> Result<Parsed, ParseError> {
     Scan::run(args)?.classify()
 }
 
-/// Per-token accumulator.
-///
-/// `iter` is owned by `Scan` (rather than passed alongside `&mut self`) so that
-/// `consume` can pull the next token from inside the match arm for `--extend <val>`
-/// without juggling two simultaneous `&mut` borrows.
+/// Per-token accumulator. Owns `iter` so `consume` can pull the value token
+/// for `--extend <val>` via `&mut self`.
 struct Scan {
     iter: IntoIter<String>,
     help: bool,
@@ -142,14 +133,14 @@ impl Scan {
     }
 }
 
-/// Text printed for `makerz --version`. Ends with a trailing newline so callers can use `print!`.
+/// Text printed for `makerz --version`. Trailing `\n` included.
 pub const VERSION_TEXT: &str = concat!(
     "makerz ",
     env!("CARGO_PKG_VERSION"),
     "\n(for cargo-make's version, run `makers --version`)\n",
 );
 
-/// Text printed for `makerz --help`.
+/// Text printed for `makerz --help`. Trailing `\n` included.
 pub const HELP_TEXT: &str = "\
 makerz - a thin wrapper around cargo-make (`makers`)
 

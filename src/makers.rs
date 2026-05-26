@@ -7,17 +7,11 @@ use crate::error::Error;
 pub const MAKERS_BINARY: &str = "makers";
 
 /// Build the argv that `makers` should be invoked with.
-///
-/// In the cli-skeleton scope this is the identity over the passthrough args.
-/// Subsequent PRs prepend `--cwd <dir>` and `--env KEY=VALUE` pairs here.
 pub fn build_args(passthrough: &[String]) -> Vec<String> {
     passthrough.to_vec()
 }
 
-/// Spawn `binary` with `args`, inherit stdio, and translate the result.
-///
-/// `binary` is parametric so callers (and tests) can swap it out;
-/// the real entry point passes [`MAKERS_BINARY`].
+/// Spawn `binary` with `args`, inheriting stdio, and translate the result into [`Error`].
 pub fn spawn(binary: &str, args: &[String]) -> Result<(), Error> {
     let status = match Command::new(binary).args(args).status() {
         Ok(s) => s,
