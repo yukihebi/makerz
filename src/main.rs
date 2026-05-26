@@ -1,6 +1,7 @@
 use std::env;
 use std::process::ExitCode;
 
+mod caller;
 mod cli;
 mod directive_parser;
 mod error;
