@@ -28,6 +28,9 @@ pub enum ParseMakefileError {
         #[source]
         source: toml_edit::TomlError,
     },
+
+    #[error("top-level `extend` must be a string (got {kind})")]
+    ExtendNotString { kind: &'static str },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -93,17 +96,46 @@ pub fn parse(location: MakefileLocation) -> Result<ParsedMakefile, ParseMakefile
         path: path.clone(),
         source,
     })?;
-    let _doc = content
+    let doc = content
         .parse::<toml_edit::DocumentMut>()
         .map_err(|source| ParseMakefileError::TomlParse {
             path: path.clone(),
             source,
         })?;
+    let extend = parse_extend(&doc)?;
     Ok(ParsedMakefile {
         location,
         env: ParsedEnv::default(),
-        extend: None,
+        extend,
     })
+}
+
+fn parse_extend(doc: &toml_edit::DocumentMut) -> Result<Option<String>, ParseMakefileError> {
+    let Some(item) = doc.get("extend") else {
+        return Ok(None);
+    };
+    if let Some(s) = item.as_str() {
+        return Ok(Some(s.to_string()));
+    }
+    Err(ParseMakefileError::ExtendNotString {
+        kind: item_kind_label(item),
+    })
+}
+
+fn item_kind_label(item: &toml_edit::Item) -> &'static str {
+    use toml_edit::{Item, Value};
+    match item {
+        Item::None => "none",
+        Item::Value(Value::String(_)) => "string",
+        Item::Value(Value::Integer(_)) => "integer",
+        Item::Value(Value::Float(_)) => "float",
+        Item::Value(Value::Boolean(_)) => "boolean",
+        Item::Value(Value::Datetime(_)) => "datetime",
+        Item::Value(Value::Array(_)) => "array",
+        Item::Value(Value::InlineTable(_)) => "inline-table",
+        Item::Table(_) => "table",
+        Item::ArrayOfTables(_) => "array-of-tables",
+    }
 }
 
 #[cfg(test)]

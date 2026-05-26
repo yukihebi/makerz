@@ -21,3 +21,41 @@ fn invalid_toml_returns_toml_parse_error() {
         "got {err:?}"
     );
 }
+
+#[test]
+fn no_extend_returns_none() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "[env]\n");
+    let parsed = parse(loc).unwrap();
+    assert_eq!(parsed.extend(), None);
+}
+
+#[test]
+fn string_extend_returns_some() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "extend = \"../parent/Makefile.toml\"\n");
+    let parsed = parse(loc).unwrap();
+    assert_eq!(parsed.extend(), Some("../parent/Makefile.toml"));
+}
+
+#[test]
+fn array_extend_is_error() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "extend = [\"a\", \"b\"]\n");
+    let err = parse(loc).unwrap_err();
+    assert!(
+        matches!(err, ParseMakefileError::ExtendNotString { .. }),
+        "got {err:?}"
+    );
+}
+
+#[test]
+fn table_extend_is_error() {
+    let tmp = tempdir().unwrap();
+    let loc = write_makefile(tmp.path(), "extend = { path = \"../p/Makefile.toml\" }\n");
+    let err = parse(loc).unwrap_err();
+    assert!(
+        matches!(err, ParseMakefileError::ExtendNotString { .. }),
+        "got {err:?}"
+    );
+}
