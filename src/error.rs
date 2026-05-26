@@ -3,6 +3,7 @@ use std::io;
 use thiserror::Error;
 
 use crate::cli::ParseError;
+use crate::discovery::DiscoveryError;
 
 /// Common error type for makerz.
 #[derive(Debug, Error)]
@@ -10,6 +11,14 @@ pub enum Error {
     /// Failure to parse makerz's own CLI arguments.
     #[error("argument error: {0}")]
     ArgParse(#[from] ParseError),
+
+    /// Failure to locate a `Makefile.toml` upward from cwd.
+    #[error("discovery error: {0}")]
+    Discovery(#[from] DiscoveryError),
+
+    /// Failure to obtain the current working directory.
+    #[error("failed to read current directory: {0}")]
+    Cwd(#[source] io::Error),
 
     /// `makers` binary missing on PATH.
     #[error("`makers` not found on PATH; install cargo-make (e.g., `cargo install cargo-make`)")]
@@ -34,6 +43,8 @@ impl Error {
     pub fn exit_code(&self) -> u8 {
         match self {
             Error::ArgParse(_) => 2,
+            Error::Discovery(_) => 1,
+            Error::Cwd(_) => 1,
             Error::MakersNotFound => 127,
             Error::MakersSpawn(_) => 1,
             Error::MakersExited(c) => u8::try_from(*c).unwrap_or(1),

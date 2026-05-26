@@ -1,5 +1,9 @@
+use std::io;
+use std::path::PathBuf;
+
 use super::*;
 use crate::cli::ParseError;
+use crate::discovery::DiscoveryError;
 
 #[test]
 fn exit_code_arg_parse_is_2() {
@@ -7,6 +11,20 @@ fn exit_code_arg_parse_is_2() {
         Error::ArgParse(ParseError::ExtendMissingValue).exit_code(),
         2
     );
+}
+
+#[test]
+fn exit_code_discovery_is_1() {
+    let err = Error::Discovery(DiscoveryError::NotFound {
+        start: PathBuf::from("/nowhere"),
+    });
+    assert_eq!(err.exit_code(), 1);
+}
+
+#[test]
+fn exit_code_cwd_is_1() {
+    let err = Error::Cwd(io::Error::other("denied"));
+    assert_eq!(err.exit_code(), 1);
 }
 
 #[test]

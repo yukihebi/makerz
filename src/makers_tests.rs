@@ -1,12 +1,27 @@
+use std::ffi::OsString;
+use std::path::Path;
+
 use super::*;
 use crate::error::Error;
 
 #[test]
-fn build_args_is_identity_for_passthrough() {
-    assert_eq!(build_args(&[]), Vec::<String>::new());
+fn build_args_prepends_cwd_with_empty_passthrough() {
     assert_eq!(
-        build_args(&["task".into(), "--flag".into()]),
-        vec!["task".to_string(), "--flag".into()]
+        build_args(Path::new("/abs/dir"), &[]),
+        vec![OsString::from("--cwd"), OsString::from("/abs/dir")]
+    );
+}
+
+#[test]
+fn build_args_prepends_cwd_then_passthrough() {
+    assert_eq!(
+        build_args(Path::new("/abs/dir"), &["task".into(), "--flag".into()]),
+        vec![
+            OsString::from("--cwd"),
+            OsString::from("/abs/dir"),
+            OsString::from("task"),
+            OsString::from("--flag"),
+        ]
     );
 }
 
@@ -34,11 +49,17 @@ fn run_with_exit_code(code: i32) -> Result<(), Error> {
 }
 
 #[cfg(unix)]
-fn shell_exit_command(code: i32) -> (&'static str, Vec<String>) {
-    ("sh", vec!["-c".into(), format!("exit {code}")])
+fn shell_exit_command(code: i32) -> (&'static str, Vec<OsString>) {
+    (
+        "sh",
+        vec![OsString::from("-c"), OsString::from(format!("exit {code}"))],
+    )
 }
 
 #[cfg(windows)]
-fn shell_exit_command(code: i32) -> (&'static str, Vec<String>) {
-    ("cmd", vec!["/C".into(), format!("exit {code}")])
+fn shell_exit_command(code: i32) -> (&'static str, Vec<OsString>) {
+    (
+        "cmd",
+        vec![OsString::from("/C"), OsString::from(format!("exit {code}"))],
+    )
 }

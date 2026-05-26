@@ -2,6 +2,7 @@ use std::env;
 use std::process::ExitCode;
 
 mod cli;
+mod discovery;
 mod error;
 mod makers;
 
@@ -32,9 +33,13 @@ fn run(args: Vec<String>) -> Result<(), Error> {
         Parsed::Init { extend: _ } => {
             unimplemented!("--init is implemented in a later PR")
         }
-        Parsed::Passthrough { args } => {
-            let argv = makers::build_args(&args);
-            makers::spawn(makers::MAKERS_BINARY, &argv)
-        }
+        Parsed::Passthrough { args } => passthrough(args),
     }
+}
+
+fn passthrough(args: Vec<String>) -> Result<(), Error> {
+    let cwd = env::current_dir().map_err(Error::Cwd)?;
+    let discovered = discovery::find_makefile(&cwd)?;
+    let argv = makers::build_args(discovered.dir(), &args);
+    makers::spawn(makers::MAKERS_BINARY, &argv)
 }
