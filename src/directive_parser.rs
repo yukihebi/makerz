@@ -21,12 +21,8 @@ pub enum ParseMakefileError {
         source: std::io::Error,
     },
 
-    #[error("TOML parse error in {}: {source}", path.display())]
-    TomlParse {
-        path: PathBuf,
-        #[source]
-        source: toml_edit::TomlError,
-    },
+    #[error("TOML parse error: {0}")]
+    TomlParse(#[from] toml_edit::TomlError),
 
     #[error("top-level `extend` must be a string (got {kind})")]
     ExtendNotString { kind: &'static str },
@@ -128,19 +124,19 @@ pub fn parse(location: MakefileLocation) -> Result<ParsedMakefile, ParseMakefile
         path: path.clone(),
         source,
     })?;
-    let doc = content
-        .parse::<toml_edit::DocumentMut>()
-        .map_err(|source| ParseMakefileError::TomlParse {
-            path: path.clone(),
-            source,
-        })?;
-    let extend = parse_extend(&doc)?;
-    let env = parse_env(&content, &doc)?;
+    let (env, extend) = parse_content(&content)?;
     Ok(ParsedMakefile {
         location,
         env,
         extend,
     })
+}
+
+pub fn parse_content(content: &str) -> Result<(ParsedEnv, Option<String>), ParseMakefileError> {
+    let doc = content.parse::<toml_edit::DocumentMut>()?;
+    let extend = parse_extend(&doc)?;
+    let env = parse_env(content, &doc)?;
+    Ok((env, extend))
 }
 
 fn parse_env(content: &str, doc: &toml_edit::DocumentMut) -> Result<ParsedEnv, ParseMakefileError> {
