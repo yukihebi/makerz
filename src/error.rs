@@ -22,11 +22,13 @@ pub enum Error {
     #[error("failed to spawn `makers`: {0}")]
     MakersSpawn(#[source] io::Error),
 
-    /// `makers` ran and exited with the given non-zero code.
+    /// `makers` ran and exited with this code. Non-zero by construction:
+    /// the spawn path only constructs this variant after `status.success()` is false.
     #[error("`makers` exited with code {0}")]
     MakersExited(i32),
 
-    /// `makers` was terminated by a signal (no exit code).
+    /// `makers` exited without surfacing a code. On Unix this means a fatal signal;
+    /// Windows always reports a code so this variant is Unix-only in practice.
     #[error("`makers` terminated by signal")]
     MakersTerminatedBySignal,
 }

@@ -46,14 +46,17 @@ pub fn parse(args: Vec<String>) -> Result<Parsed, ParseError> {
     Scan::run(args)?.classify()
 }
 
-/// Per-token accumulator. Owns the input iterator so per-token logic stays self-contained.
+/// Per-token accumulator.
+///
+/// `iter` is owned by `Scan` (rather than passed alongside `&mut self`) so that
+/// `consume` can pull the next token from inside the match arm for `--extend <val>`
+/// without juggling two simultaneous `&mut` borrows.
 struct Scan {
     iter: IntoIter<String>,
     help: bool,
     version: bool,
     init: bool,
     extend: Option<String>,
-    extend_count: u32,
     passthrough: Vec<String>,
 }
 
@@ -65,7 +68,6 @@ impl Scan {
             version: false,
             init: false,
             extend: None,
-            extend_count: 0,
             passthrough: Vec::new(),
         }
     }
@@ -104,7 +106,9 @@ impl Scan {
         if value.is_empty() {
             return Err(ParseError::ExtendEmptyValue);
         }
-        self.extend_count += 1;
+        if self.extend.is_some() {
+            return Err(ParseError::ExtendDuplicated);
+        }
         self.extend = Some(value);
         Ok(())
     }
@@ -116,18 +120,10 @@ impl Scan {
         if self.version {
             return Ok(Parsed::Version);
         }
-        self.validate_extend()?;
-        self.into_init_or_passthrough()
-    }
-
-    fn validate_extend(&self) -> Result<(), ParseError> {
-        if self.extend_count > 1 {
-            return Err(ParseError::ExtendDuplicated);
-        }
         if self.extend.is_some() && !self.init {
             return Err(ParseError::ExtendWithoutInit);
         }
-        Ok(())
+        self.into_init_or_passthrough()
     }
 
     fn into_init_or_passthrough(self) -> Result<Parsed, ParseError> {
@@ -146,11 +142,11 @@ impl Scan {
     }
 }
 
-/// Text printed for `makerz --version`.
+/// Text printed for `makerz --version`. Ends with a trailing newline so callers can use `print!`.
 pub const VERSION_TEXT: &str = concat!(
     "makerz ",
     env!("CARGO_PKG_VERSION"),
-    "\n(for cargo-make's version, run `makers --version`)",
+    "\n(for cargo-make's version, run `makers --version`)\n",
 );
 
 /// Text printed for `makerz --help`.

@@ -115,6 +115,14 @@ fn init_with_passthrough_args_is_error() {
 }
 
 #[test]
+fn init_with_extend_and_extras_is_error() {
+    assert_eq!(
+        parse_strs(&["--init", "--extend", "foo", "extra"]).unwrap_err(),
+        ParseError::InitWithExtraArgs(vec!["extra".into()])
+    );
+}
+
+#[test]
 fn passthrough_unknown_flags_and_positionals() {
     assert_eq!(
         parse_strs(&["task1", "--cwd", "somewhere", "--verbose"]).unwrap(),
