@@ -49,10 +49,8 @@ fn plain_table_extend_is_bad_form() {
 
 #[test]
 fn relative_attribute_is_distinct_error() {
-    let err = parse_content(
-        "extend = { path = \"../p/Makefile.toml\", relative = \"git\" }\n",
-    )
-    .unwrap_err();
+    let err = parse_content("extend = { path = \"../p/Makefile.toml\", relative = \"git\" }\n")
+        .unwrap_err();
     assert!(
         matches!(&err, ParseMakefileError::ExtendRelative { value } if value == "git"),
         "got {err:?}"
@@ -61,10 +59,8 @@ fn relative_attribute_is_distinct_error() {
 
 #[test]
 fn optional_attribute_is_distinct_error() {
-    let err = parse_content(
-        "extend = { path = \"../p/Makefile.toml\", optional = true }\n",
-    )
-    .unwrap_err();
+    let err =
+        parse_content("extend = { path = \"../p/Makefile.toml\", optional = true }\n").unwrap_err();
     assert!(
         matches!(err, ParseMakefileError::ExtendOptional),
         "got {err:?}"

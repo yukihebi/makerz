@@ -46,14 +46,8 @@ fn three_level_chain_orders_root_first() {
     let p = tmp.path().join("p");
     let c = tmp.path().join("c");
     write_makefile(&gp, "[env]\nGP = \"gp\"\n");
-    write_makefile(
-        &p,
-        "extend = \"../gp/Makefile.toml\"\n[env]\nP = \"p\"\n",
-    );
-    let c_loc = write_makefile(
-        &c,
-        "extend = \"../p/Makefile.toml\"\n[env]\nC = \"c\"\n",
-    );
+    write_makefile(&p, "extend = \"../gp/Makefile.toml\"\n[env]\nP = \"p\"\n");
+    let c_loc = write_makefile(&c, "extend = \"../p/Makefile.toml\"\n[env]\nC = \"c\"\n");
 
     let chain = build_chain(c_loc).unwrap();
 
@@ -74,7 +68,10 @@ fn extend_to_missing_file_is_not_found() {
     let ChainError::ExtendNotFound { target, from, .. } = err else {
         panic!("expected ExtendNotFound, got {err:?}");
     };
-    assert!(target.ends_with("nope/Makefile.toml"), "target = {target:?}");
+    assert!(
+        target.ends_with("nope/Makefile.toml"),
+        "target = {target:?}"
+    );
     assert!(from.ends_with("child/Makefile.toml"), "from = {from:?}");
 }
 
@@ -91,7 +88,10 @@ fn cycle_between_two_makefiles_is_detected() {
     let ChainError::Cycle { cycle_at } = err else {
         panic!("expected Cycle, got {err:?}");
     };
-    assert!(cycle_at.ends_with("a/Makefile.toml"), "cycle_at = {cycle_at:?}");
+    assert!(
+        cycle_at.ends_with("a/Makefile.toml"),
+        "cycle_at = {cycle_at:?}"
+    );
 }
 
 #[test]
