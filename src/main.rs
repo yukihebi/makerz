@@ -5,6 +5,7 @@ mod caller;
 mod cli;
 mod directive_parser;
 mod error;
+mod extend_chain;
 mod location;
 mod makers;
 
