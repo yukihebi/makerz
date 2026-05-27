@@ -22,8 +22,17 @@ pub enum ParseMakefileError {
     #[error("TOML parse error: {0}")]
     TomlParse(#[from] toml_edit::TomlError),
 
+    #[error("`extend = [...]` (multi-parent) is not supported in current scope")]
+    ExtendMultiParent,
+
+    #[error("`extend.relative` is not supported in current scope (got `{value}`)")]
+    ExtendRelative { value: String },
+
+    #[error("`extend.optional` is not supported in current scope")]
+    ExtendOptional,
+
     #[error("top-level `extend` must be a string (got {kind})")]
-    ExtendNotString { kind: &'static str },
+    ExtendBadForm { kind: &'static str },
 
     #[error("makerz directive `# @makerz = \"{value}\"` is not in any [env] section")]
     DirectiveOutsideEnv { value: String },
@@ -377,7 +386,19 @@ fn parse_extend(doc: &toml_edit::DocumentMut) -> Result<Option<String>, ParseMak
     if let Some(s) = item.as_str() {
         return Ok(Some(s.to_string()));
     }
-    Err(ParseMakefileError::ExtendNotString {
+    if item.is_array() {
+        return Err(ParseMakefileError::ExtendMultiParent);
+    }
+    if let Some(table) = item.as_table_like() {
+        if let Some(rel_item) = table.get("relative") {
+            let value = rel_item.as_str().unwrap_or("").to_string();
+            return Err(ParseMakefileError::ExtendRelative { value });
+        }
+        if table.get("optional").is_some() {
+            return Err(ParseMakefileError::ExtendOptional);
+        }
+    }
+    Err(ParseMakefileError::ExtendBadForm {
         kind: item_kind_label(item),
     })
 }
