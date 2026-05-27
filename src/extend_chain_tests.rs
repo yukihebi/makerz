@@ -77,3 +77,30 @@ fn extend_to_missing_file_is_not_found() {
     assert!(target.ends_with("nope/Makefile.toml"), "target = {target:?}");
     assert!(from.ends_with("child/Makefile.toml"), "from = {from:?}");
 }
+
+#[test]
+fn cycle_between_two_makefiles_is_detected() {
+    let tmp = tempdir().unwrap();
+    let a = tmp.path().join("a");
+    let b = tmp.path().join("b");
+    write_makefile(&a, "extend = \"../b/Makefile.toml\"\n");
+    write_makefile(&b, "extend = \"../a/Makefile.toml\"\n");
+
+    let err = build_chain(MakefileLocation::new(a.clone())).unwrap_err();
+
+    let ChainError::Cycle { cycle_at } = err else {
+        panic!("expected Cycle, got {err:?}");
+    };
+    assert!(cycle_at.ends_with("a/Makefile.toml"), "cycle_at = {cycle_at:?}");
+}
+
+#[test]
+fn self_extend_is_cycle() {
+    let tmp = tempdir().unwrap();
+    let a = tmp.path().join("a");
+    let a_loc = write_makefile(&a, "extend = \"./Makefile.toml\"\n");
+
+    let err = build_chain(a_loc).unwrap_err();
+
+    assert!(matches!(err, ChainError::Cycle { .. }), "got {err:?}");
+}
