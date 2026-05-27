@@ -10,5 +10,5 @@ script_runner = "@duckscript"
 script = '''
 cd ${ISOLATED}
 cd ${INVOCATION_DIR}
-cat marker.test
+exec --fail-on-error sh -c "cat marker.test 1>&2"
 '''

@@ -2,5 +2,7 @@
 skip_core_tasks = true
 
 [tasks.my-dir]
-command = "echo"
-args = ["from-parent"]
+script_runner = "@duckscript"
+script = '''
+exec --fail-on-error sh -c "echo from-parent 1>&2"
+'''
