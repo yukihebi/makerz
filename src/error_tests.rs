@@ -24,7 +24,7 @@ fn exit_code_find_is_1() {
 
 #[test]
 fn exit_code_parse_makefile_is_1() {
-    let err = Error::ParseMakefile(ParseMakefileError::ExtendNotString { kind: "array" });
+    let err = Error::ParseMakefile(ParseMakefileError::ExtendMultiParent);
     assert_eq!(err.exit_code(), 1);
 }
 
