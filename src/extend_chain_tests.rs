@@ -62,3 +62,18 @@ fn three_level_chain_orders_root_first() {
     assert_eq!(chain[1].env().plain_keys(), &["P"]);
     assert_eq!(chain[2].env().plain_keys(), &["C"]);
 }
+
+#[test]
+fn extend_to_missing_file_is_not_found() {
+    let tmp = tempdir().unwrap();
+    let child = tmp.path().join("child");
+    let c_loc = write_makefile(&child, "extend = \"../nope/Makefile.toml\"\n");
+
+    let err = build_chain(c_loc).unwrap_err();
+
+    let ChainError::ExtendNotFound { target, from, .. } = err else {
+        panic!("expected ExtendNotFound, got {err:?}");
+    };
+    assert!(target.ends_with("nope/Makefile.toml"), "target = {target:?}");
+    assert!(from.ends_with("child/Makefile.toml"), "from = {from:?}");
+}
