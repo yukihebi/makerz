@@ -141,18 +141,7 @@ pub const VERSION_TEXT: &str = concat!(
 );
 
 /// Text printed for `makerz --help`. Trailing `\n` included.
-pub const HELP_TEXT: &str = "\
-makerz - a thin wrapper around cargo-make (`makers`)
-
-USAGE:
-    makerz [makers args...]            Forward args to `makers`
-    makerz --init                      Generate a new Makefile.toml
-    makerz --init --extend <path>      Generate Makefile.toml extending <path>
-    makerz --version                   Print makerz's version
-    makerz --help                      Print this help
-
-For cargo-make's own usage, run `makers --help`.
-";
+pub const HELP_TEXT: &str = include_str!("cli_help.txt");
 
 #[cfg(test)]
 #[path = "cli_tests.rs"]

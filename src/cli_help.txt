@@ -1,0 +1,10 @@
+makerz - a thin wrapper around cargo-make (`makers`)
+
+USAGE:
+    makerz [makers args...]            Forward args to `makers`
+    makerz --init                      Generate a new Makefile.toml
+    makerz --init --extend <path>      Generate Makefile.toml extending <path>
+    makerz --version                   Print makerz's version
+    makerz --help                      Print this help
+
+For cargo-make's own usage, run `makers --help`.
