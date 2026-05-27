@@ -17,3 +17,17 @@ fn version_first_line_matches_cargo_version() {
     let expected = format!("makerz {}", env!("CARGO_PKG_VERSION"));
     assert_eq!(first_line, expected);
 }
+
+#[test]
+fn help_matches_src_cli_help_txt() {
+    let dir = tempdir().expect("tempdir");
+    let output = run_makerz(dir.path(), &["--help"]);
+    assert!(
+        output.status.success(),
+        "makerz --help exited non-zero. stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
+    let expected = include_str!("../src/cli_help.txt");
+    assert_eq!(stdout, expected);
+}
