@@ -28,7 +28,11 @@ fn s1_nearest_ancestor_discovery() {
         String::from_utf8_lossy(&output.stderr),
     );
     assert_eq!(task_output(&output.stdout), "from-parent");
-    assert!(output.stderr.is_empty());
+    assert!(
+        output.stderr.is_empty(),
+        "expected empty stderr, got: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
 }
 
 #[test]
