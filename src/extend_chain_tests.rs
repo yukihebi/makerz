@@ -104,3 +104,91 @@ fn self_extend_is_cycle() {
 
     assert!(matches!(err, ChainError::Cycle { .. }), "got {err:?}");
 }
+
+#[test]
+fn multi_parent_in_chain_propagates_as_parse_error() {
+    let tmp = tempdir().unwrap();
+    let c = tmp.path().join("c");
+    let c_loc = write_makefile(&c, "extend = [\"../p/Makefile.toml\"]\n");
+
+    let err = build_chain(c_loc).unwrap_err();
+
+    assert!(
+        matches!(
+            err,
+            ChainError::Parse {
+                source: ParseMakefileError::ExtendMultiParent,
+                ..
+            }
+        ),
+        "got {err:?}"
+    );
+}
+
+#[test]
+fn relative_attribute_in_chain_propagates() {
+    let tmp = tempdir().unwrap();
+    let c = tmp.path().join("c");
+    let c_loc = write_makefile(
+        &c,
+        "extend = { path = \"../p/Makefile.toml\", relative = \"git\" }\n",
+    );
+
+    let err = build_chain(c_loc).unwrap_err();
+
+    assert!(
+        matches!(
+            err,
+            ChainError::Parse {
+                source: ParseMakefileError::ExtendRelative { .. },
+                ..
+            }
+        ),
+        "got {err:?}"
+    );
+}
+
+#[test]
+fn optional_attribute_in_chain_propagates() {
+    let tmp = tempdir().unwrap();
+    let c = tmp.path().join("c");
+    let c_loc = write_makefile(
+        &c,
+        "extend = { path = \"../p/Makefile.toml\", optional = true }\n",
+    );
+
+    let err = build_chain(c_loc).unwrap_err();
+
+    assert!(
+        matches!(
+            err,
+            ChainError::Parse {
+                source: ParseMakefileError::ExtendOptional,
+                ..
+            }
+        ),
+        "got {err:?}"
+    );
+}
+
+#[test]
+fn ancestor_parse_error_propagates() {
+    let tmp = tempdir().unwrap();
+    let p = tmp.path().join("p");
+    let c = tmp.path().join("c");
+    write_makefile(&p, "this is = = not toml\n");
+    let c_loc = write_makefile(&c, "extend = \"../p/Makefile.toml\"\n");
+
+    let err = build_chain(c_loc).unwrap_err();
+
+    assert!(
+        matches!(
+            err,
+            ChainError::Parse {
+                source: ParseMakefileError::TomlParse(_),
+                ..
+            }
+        ),
+        "got {err:?}"
+    );
+}
