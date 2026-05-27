@@ -11,7 +11,7 @@
 use std::collections::HashSet;
 use std::fs;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use thiserror::Error;
 
@@ -50,14 +50,15 @@ pub fn build_chain(start: MakefileLocation) -> Result<Vec<ParsedMakefile>, Chain
     let mut current = start;
 
     loop {
-        let canon = canonicalize_file(&current.file(), &current.file())?;
-        if !seen.insert(canon.clone()) {
-            return Err(ChainError::Cycle { cycle_at: canon });
-        }
         let parsed = parse_makefile(current.clone()).map_err(|source| ChainError::Parse {
             location: current.clone(),
             source,
         })?;
+        let canon = fs::canonicalize(current.file())
+            .expect("Makefile.toml is canonicalizable after a successful parse");
+        if !seen.insert(canon.clone()) {
+            return Err(ChainError::Cycle { cycle_at: canon });
+        }
         let next_rel = parsed.extend().map(str::to_string);
         chain.push(parsed);
 
@@ -65,7 +66,7 @@ pub fn build_chain(start: MakefileLocation) -> Result<Vec<ParsedMakefile>, Chain
             break;
         };
         let target = current.dir().join(&rel);
-        let canon_target = canonicalize_file(&target, &current.file())?;
+        let canon_target = canonicalize_extend_target(&target, &current.file())?;
         let next_dir = canon_target
             .parent()
             .expect("canonicalized Makefile.toml has a parent directory")
@@ -77,10 +78,7 @@ pub fn build_chain(start: MakefileLocation) -> Result<Vec<ParsedMakefile>, Chain
     Ok(chain)
 }
 
-fn canonicalize_file(
-    target: &std::path::Path,
-    from: &std::path::Path,
-) -> Result<PathBuf, ChainError> {
+fn canonicalize_extend_target(target: &Path, from: &Path) -> Result<PathBuf, ChainError> {
     fs::canonicalize(target).map_err(|source| ChainError::ExtendNotFound {
         target: target.to_path_buf(),
         from: from.to_path_buf(),

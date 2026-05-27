@@ -192,3 +192,22 @@ fn ancestor_parse_error_propagates() {
         "got {err:?}"
     );
 }
+
+#[test]
+fn missing_start_makefile_surfaces_as_parse_read_error() {
+    let tmp = tempdir().unwrap();
+    let loc = MakefileLocation::new(tmp.path().join("nope"));
+
+    let err = build_chain(loc).unwrap_err();
+
+    assert!(
+        matches!(
+            err,
+            ChainError::Parse {
+                source: ParseMakefileError::Read { .. },
+                ..
+            }
+        ),
+        "got {err:?}"
+    );
+}
