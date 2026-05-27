@@ -15,12 +15,12 @@ fn s1_nearest_ancestor_discovery() {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr),
     );
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "from-parent");
     assert!(
-        output.stdout.is_empty(),
-        "expected empty stdout, got: {}",
-        String::from_utf8_lossy(&output.stdout),
+        output.stderr.is_empty(),
+        "expected empty stderr, got: {}",
+        String::from_utf8_lossy(&output.stderr),
     );
-    assert_eq!(String::from_utf8_lossy(&output.stderr), "from-parent\n",);
 }
 
 #[test]
@@ -36,14 +36,11 @@ fn s2_caller_injection_from_subdir() {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr),
     );
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "MAKERZ-S2-MARKER");
     assert!(
-        output.stdout.is_empty(),
-        "expected empty stdout, got: {}",
-        String::from_utf8_lossy(&output.stdout),
-    );
-    assert_eq!(
+        output.stderr.is_empty(),
+        "expected empty stderr, got: {}",
         String::from_utf8_lossy(&output.stderr),
-        "MAKERZ-S2-MARKER\n",
     );
 }
 
@@ -62,13 +59,10 @@ fn s3_caller_injection_from_makefile_dir() {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr),
     );
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "MAKERZ-S3-MARKER");
     assert!(
-        output.stdout.is_empty(),
-        "expected empty stdout, got: {}",
-        String::from_utf8_lossy(&output.stdout),
-    );
-    assert_eq!(
+        output.stderr.is_empty(),
+        "expected empty stderr, got: {}",
         String::from_utf8_lossy(&output.stderr),
-        "MAKERZ-S3-MARKER\n",
     );
 }
