@@ -1,12 +1,9 @@
 //! Walk a Makefile's top-level `extend` chain.
 //!
-//! Produces an ordered list of [`ParsedMakefile`] (ancestor → leaf) for the
-//! active Makefile, validating that every referenced file exists and that no
-//! cycle is present. Scope-limit extend forms (`extend = [...]`, `relative`,
-//! `optional`) surface as parse errors propagated from `directive_parser`.
-//!
-//! No semantic interpretation is applied here; env resolution is the next
-//! layer up.
+//! Builds an ordered list of [`ParsedMakefile`] (ancestor → leaf), validating
+//! that every referenced file exists and that the chain has no cycle.
+//! Unsupported extend forms (`extend = [...]`, `relative`, `optional`) surface
+//! as [`ChainError::Parse`] from `directive_parser`.
 
 use std::collections::HashSet;
 use std::fs;
@@ -66,10 +63,10 @@ pub fn build_chain(start: MakefileLocation) -> Result<Vec<ParsedMakefile>, Chain
     Ok(chain)
 }
 
-/// Parse `loc`'s Makefile.toml and produce its canonical absolute path.
+/// Parse the Makefile at `loc` and pair it with its canonical path.
 ///
-/// Canonicalization is infallible once parsing has succeeded: the parser
-/// already read the file, so the path is known to exist.
+/// Canonicalizing cannot fail here: a successful parse means the file was
+/// read, so it exists.
 fn load_node(loc: &MakefileLocation) -> Result<(ParsedMakefile, PathBuf), ChainError> {
     let parsed = parse_makefile(loc.clone()).map_err(|source| ChainError::Parse {
         location: loc.clone(),
@@ -80,8 +77,6 @@ fn load_node(loc: &MakefileLocation) -> Result<(ParsedMakefile, PathBuf), ChainE
     Ok((parsed, canon))
 }
 
-/// Resolve the next [`MakefileLocation`] from the current one's `extend`
-/// directive, returning `None` when the chain terminates.
 fn next_location(
     current: &MakefileLocation,
     extend: Option<&str>,
