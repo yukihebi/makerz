@@ -30,19 +30,48 @@ fn string_extend_returns_some() {
 }
 
 #[test]
-fn array_extend_is_error() {
+fn array_extend_is_multi_parent_error() {
     let err = parse_content("extend = [\"a\", \"b\"]\n").unwrap_err();
     assert!(
-        matches!(err, ParseMakefileError::ExtendNotString { .. }),
+        matches!(err, ParseMakefileError::ExtendMultiParent),
         "got {err:?}"
     );
 }
 
 #[test]
-fn table_extend_is_error() {
+fn plain_table_extend_is_bad_form() {
     let err = parse_content("extend = { path = \"../p/Makefile.toml\" }\n").unwrap_err();
     assert!(
-        matches!(err, ParseMakefileError::ExtendNotString { .. }),
+        matches!(err, ParseMakefileError::ExtendBadForm { kind } if kind == "inline-table"),
+        "got {err:?}"
+    );
+}
+
+#[test]
+fn relative_attribute_is_distinct_error() {
+    let err = parse_content("extend = { path = \"../p/Makefile.toml\", relative = \"git\" }\n")
+        .unwrap_err();
+    assert!(
+        matches!(&err, ParseMakefileError::ExtendRelative { value } if value == "git"),
+        "got {err:?}"
+    );
+}
+
+#[test]
+fn optional_attribute_is_distinct_error() {
+    let err =
+        parse_content("extend = { path = \"../p/Makefile.toml\", optional = true }\n").unwrap_err();
+    assert!(
+        matches!(err, ParseMakefileError::ExtendOptional),
+        "got {err:?}"
+    );
+}
+
+#[test]
+fn integer_extend_is_bad_form() {
+    let err = parse_content("extend = 42\n").unwrap_err();
+    assert!(
+        matches!(err, ParseMakefileError::ExtendBadForm { kind } if kind == "integer"),
         "got {err:?}"
     );
 }
